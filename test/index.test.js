@@ -1,0 +1,1246 @@
+const _ = require('lodash');
+const { sutando, Model, Collection, Builder, Paginator } = require('../sutando');
+const config = require(process.env.SUTANDO_CONFIG || './config');
+const { ModelNotFoundError } = require('../sutando/errors');
+
+Promise.delay = function (duration) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      resolve(true);
+    }, duration)
+  });
+}
+
+describe('Sutando', () => {
+  it('should fail if passing a wrong connection info', () => {
+    sutando.addConnection({
+      client: 'abc',
+      connection: {
+        host : '127.0.0.1',
+        port : 1234,
+      }
+    });
+    expect(() => {
+      sutando.connection();
+    }).toThrow();
+    sutando.connections = {};
+  });
+
+  it('should return a same instance', () => {
+    sutando.addConnection(config.mysql);
+
+    expect(sutando.connection()).toBe(sutando.connection());
+  })
+});
+
+describe('Model', () => {
+
+  class User extends Model {
+    relationPost() {
+      return this.hasMany(Post);
+    }
+  }
+
+  class Post extends Model {
+    relationAuthor() {
+      return this.belongsTo(User);
+    }
+
+    relationTags() {
+      return this.belongsToMany(Tag, 'post_tag');
+    }
+
+    relationThumbnail() {
+      return this.belongsTo(Thumbnail, 'thumbnail_id');
+    }
+  }
+
+  class Tag extends Model {
+    relationPosts() {
+      return this.belongsToMany(Post, 'post_tag');
+    }
+  }
+
+  class Thumbnail extends Model {}
+  class Media extends Model {}
+
+  it('should return a Builder instance', () => {
+    expect(User.query()).toBeInstanceOf(Builder);
+  });
+
+  it('return the table name of the plural model name', () => {
+    const user = new User;
+    const media = new Media;
+    expect(user.getTable()).toBe('users');
+    expect(media.getTable()).toBe('media');
+  });
+
+  describe('#toData & #toJson', () => {
+    class User extends Model {}
+    class Post extends Model {}
+
+    let testModel;
+    beforeEach(() => {
+      testModel = new User({
+        id: 1,
+        firstName: 'Joe',
+        lastName: 'Shmoe',
+        address: '123 Main St.'
+      });
+    });
+
+    it('includes the relations loaded on the model', () => {
+      testModel.setRelation('posts', new Collection([
+        new Post({id: 1}), new Post({id: 2})
+      ]));
+      
+      const data = testModel.toData();
+
+      expect(Object.keys(data)).toEqual(['id', 'firstName', 'lastName', 'address', 'posts']);
+      expect(data.posts.length).toBe(2);
+    });
+
+    it('serializes correctly', () => {
+      testModel.makeVisible('firstName');
+      expect(testModel.toJson()).toBe('{"firstName":"Joe"}');
+    });
+
+    describe('#visible & #hidden', () => {
+      it('only shows the fields specified in the model\'s "visible" property', () => {
+        testModel.visible = ['firstName'];
+        expect(testModel.toData()).toEqual({firstName: 'Joe'});
+      });
+
+      it('hides the fields specified in the model\'s "hidden" property', () => {
+        expect(testModel.makeHidden('firstName').toData()).toEqual({id: 1, lastName: 'Shmoe', address: '123 Main St.'});
+      });
+
+      it('hides the fields specified in the "options.hidden" property', () => {
+        testModel.makeHidden(['firstName', 'id']);
+        expect(testModel.toData()).toEqual({lastName: 'Shmoe', address: '123 Main St.'});
+      });
+
+      it('prioritizes "hidden" if there are conflicts when using both "hidden" and "visible"', () => {
+        testModel.makeVisible('firstName', 'lastName');
+        testModel.makeHidden('lastName');
+        expect(testModel.toData()).toEqual({ firstName: 'Joe' });
+      });
+
+      it('allows overriding the model\'s "hidden" property with a "makeHidden" argument', () => {
+        testModel.hidden = ['lastName'];
+        const data = testModel.makeHidden('firstName', 'id').toData();
+        expect(data).toEqual({address: '123 Main St.'});
+      });
+
+      it('prioritizes "makeHidden" when overriding both the model\'s "hidden" and "visible" properties with "makeHidden" and "makeVisible" arguments', () => {
+        testModel.visible = ['lastName', 'address'];
+        testModel.hidden = ['address'];
+        const data = testModel.makeVisible('firstName', 'lastName').makeHidden('lastName').toData();
+
+        expect(data).toEqual({firstName: 'Joe'});
+      });
+    });
+  })
+
+  describe('#isDirty', () => {
+    it('returns true if an attribute was set on a new model instance', () => {
+      const model = new Model({test: 'something'});
+      expect(model.isDirty('test')).toBeTruthy();
+    });
+
+    it("returns false if the attribute isn't set on a new model instance", () => {
+      const model = new Model({test: 'something'});
+      expect(model.isDirty('id')).toBeFalsy();
+      expect(model.isDirty()).toBeTruthy();
+    });
+
+    it('returns true if an existing attribute is updated', () => {
+      const model = new Model;
+      model.test = 'something else';
+
+      expect(model.isDirty('test')).toBeTruthy();
+    });
+  });
+})
+
+describe('Collection', () => {
+  let collection;
+  class User extends Model {
+    primaryKey = 'some_id';
+  }
+  class Post extends Model {}
+
+  beforeEach(() => {
+    collection = new Collection([
+      new User({some_id: 1, name: 'Test'}),
+      new User({name: 'Test2'}),
+      new Post({id: 2, name: 'Test3'})
+    ]);
+  });
+
+  it('should initialize the items passed to the constructor', () => {
+    expect(collection.count()).toBe(3);
+    expect(collection.modelKeys()).toEqual([1, undefined, 2]);
+    // expect(collection.get(1).getKey()).toBeUndefined();
+  });
+
+  it('should ', () => {
+    expect(collection.toData()).toEqual([
+      {some_id: 1, name: 'Test'},
+      {name: 'Test2'},
+      {id: 2, name: 'Test3'},
+    ]);
+  })
+})
+
+describe('Builder', () => {
+
+})
+
+describe('Paginator', () => {
+  
+})
+
+describe('Integration test', () => {
+  const databases = [
+    // {
+    //   client: 'postgres',
+    //   connection: config.postgres
+    // }
+  ];
+
+  if (process.argv.includes('--client=mysql')) {
+    databases.push({
+      client: 'mysql2',
+      connection: {
+        host: '127.0.0.1',
+        port: 3306,
+        user: 'root',
+        password: 'Kiddyu21',
+        database: 'ormtest',
+      },
+    });
+  } else if (process.argv.includes('--client=sqlite')) {
+    databases.push(config.sqlite);
+  }
+
+  databases.map(config => {
+    describe('Client: ' + config.client, () => {
+      sutando.addConnection(config);
+
+      class Admin extends Model {
+        table = 'administrators';
+      }
+
+      class User extends Model {
+        hidden = ['password', 'remember_token'];
+
+        relationPosts() {
+          return this.hasMany(Post);
+        }
+
+        relationLikedPosts() {
+          return this.belongsToMany(Post, 'post_like');
+        }
+      }
+
+      class Post extends Model {
+        scopePublish(query) {
+          return query.where('status', 1);
+        }
+
+        relationAuthor() {
+          return this.belongsTo(User);
+        }
+
+        relationThumbnail() {
+          return this.belongsTo(Media, 'thumbnail_id');
+        }
+
+        relationMedia() {
+          return this.belongsToMany(Media);
+        }
+
+        relationLikers() {
+          return this.belongsToMany(User, 'post_like');
+        }
+
+        relationTags() {
+          return this.belongsToMany(Tag);
+        }
+
+        relationComments() {
+          return this.hasMany(Comment);
+        }
+      }
+
+      class Tag extends Model {
+        relationPosts() {
+          return this.belongsToMany(Post);
+        }
+      }
+
+      class Comment extends Model {}
+
+      class Media extends Model {}
+
+      beforeAll(() => {
+        const connection = sutando.connection();
+        return Promise.all(['users', 'tags', 'posts', 'post_tag', 'administrators', 'comments', 'media'].map(table => {
+          return connection.schema.dropTableIfExists(table);
+        })).then(() => {
+          return connection.schema
+            .createTable('users', (table) => {
+              table.increments('id');
+              table.string('name');
+              table.string('first_name');
+              table.timestamps();
+            })
+            .createTable('media', (table) => {
+              table.increments('id');
+              table.integer('mediaable_id').defaultTo(0);
+              table.string('mediaable_type').defaultTo('');
+              table.string('uuid').defaultTo('');
+              table.timestamps();
+            })
+            .createTable('tags', (table) => {
+              table.increments('id');
+              table.string('name');
+              table.timestamps();
+            })
+            .createTable('administrators', (table) => {
+              table.increments('id');
+              table.string('username');
+              table.string('password');
+              table.timestamps();
+            })
+            .createTable('posts', (table) => {
+              table.increments('id');
+              table.integer('user_id').notNullable();
+              table.string('name');
+              table.text('content');
+              table.timestamps();
+            })
+            .createTable('post_tag', (table) => {
+              table.increments('id');
+              table.integer('post_id').notNullable();
+              table.integer('tag_id').notNullable();
+              table.timestamps();
+
+            })
+            .createTable('comments', function(table) {
+              table.increments('id');
+              table.integer('post_id').notNullable();
+              table.string('name');
+              table.string('email');
+              table.text('comment');
+              table.timestamps();
+            })
+        }).then(() => {
+          const date = new Date();
+          return Promise.all([
+            connection.table('users').insert([
+              {
+                first_name: 'Tim',
+                name: 'Shuri',
+                created_at: date,
+                updated_at: date,
+              },
+              {
+                first_name: 'X',
+                name: 'Alice',
+                created_at: date,
+                updated_at: date,
+              }
+            ]),
+            connection.table('administrators').insert([
+              {
+                username: 'test1',
+                password: 'testpwd1',
+                created_at: date,
+                updated_at: date
+              },
+              {
+                username: 'test2',
+                password: 'testpwd2',
+                created_at: date,
+                updated_at: date
+              }
+            ]),
+            connection.table('post_tag').insert([
+              {
+                post_id: 1,
+                tag_id: 1,
+                created_at: date,
+                updated_at: date
+              },
+              {
+                post_id: 1,
+                tag_id: 2,
+                created_at: date,
+                updated_at: date
+              },
+              {
+                post_id: 1,
+                tag_id: 3,
+                created_at: date,
+                updated_at: date
+              },
+              {
+                post_id: 4,
+                tag_id: 1,
+                created_at: date,
+                updated_at: date
+              }
+            ]),
+            connection.table('comments').insert([
+              {
+                post_id: 1,
+                name: '(blank)',
+                email: 'test@example.com',
+                comment: 'this is neat.',
+                created_at: date,
+                updated_at: date
+              }
+            ]),
+            connection.table('tags').insert([
+              {
+                name: 'cool',
+                created_at: date,
+                updated_at: date
+              },
+              {
+                name: 'boring',
+                created_at: date,
+                updated_at: date
+              },
+              {
+                name: 'exciting',
+                created_at: date,
+                updated_at: date
+              },
+              {
+                name: 'amazing',
+                created_at: date,
+                updated_at: date
+              }
+            ]),
+            connection.table('posts').insert([
+              {
+                user_id: 1,
+                name: 'This is a new Title!',
+                content:
+                  'Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.',
+                created_at: date,
+                updated_at: date
+              },
+              {
+                user_id: 2,
+                name: 'This is a new Title 2!',
+                content:
+                  'Lorem ipsum Veniam ex amet occaecat dolore in pariatur minim est exercitation deserunt Excepteur enim officia occaecat in exercitation aute et ad esse ex in in dolore amet consequat quis sed mollit et id incididunt sint dolore velit officia dolor dolore laboris dolor Duis ea ex quis deserunt anim nisi qui culpa laboris nostrud Duis anim deserunt esse laboris nulla qui in dolor voluptate aute reprehenderit amet ut et non voluptate elit irure mollit dolor consectetur nisi adipisicing commodo et mollit dolore incididunt cupidatat nulla ut irure deserunt non officia laboris fugiat ut pariatur ut non aliqua eiusmod dolor et nostrud minim elit occaecat commodo consectetur cillum elit laboris mollit dolore amet id qui eiusmod nulla elit eiusmod est ad aliqua aute enim ut aliquip ex in Ut nisi sint exercitation est mollit veniam cupidatat adipisicing occaecat dolor irure in aute aliqua ullamco.',
+                created_at: date,
+                updated_at: date
+              },
+              {
+                user_id: 2,
+                name: 'This is a new Title 3!',
+                content: 'Lorem ipsum Reprehenderit esse esse consectetur aliquip magna.',
+                created_at: date,
+                updated_at: date
+              },
+              {
+                user_id: 3,
+                name: 'This is a new Title 4!',
+                content: 'Lorem ipsum Anim sed eu sint aute.',
+                created_at: date,
+                updated_at: date
+              },
+              {
+                user_id: 4,
+                name: 'This is a new Title 5!',
+                content:
+                  'Lorem ipsum Commodo consectetur eu ea amet laborum nulla eiusmod minim veniam ullamco nostrud sed mollit consectetur veniam mollit Excepteur quis cupidatat.',
+                created_at: date,
+                updated_at: date
+              }
+            ]),
+          ])
+        });
+      });
+
+      afterAll(() => {
+        const connection = sutando.connection();
+        connection.destroy();
+      })
+
+      describe('Model', () => {
+        describe('first', () => {
+          it('should create a new model instance', async () => {
+            const user = await User.query().first();
+    
+            expect(user.getTable()).toBe('users');
+            expect(user).toBeInstanceOf(User);
+            expect(user).toBeInstanceOf(Model);
+          });
+        });
+
+        describe('query', () => {
+          let model;
+    
+          beforeEach(() => {
+            model = new User;
+          });
+    
+          it('returns the Builder when no arguments are passed', () => {
+            expect(User.query()).toBeInstanceOf(Builder);
+          });
+    
+          it('calls builder method with the first argument, returning the model', () => {
+            const query = User.query();
+            const q = query.where('id', 1);
+            expect(q).toStrictEqual(query);
+          });
+    
+          it('allows passing an object to query', () => {
+            const query = User.query();
+            expect(_.filter(query.query._statements, {grouping: 'where'}).length).toBe(0);
+            
+            const q = query.where('id', 1).orWhere('id', '>', 10);
+            expect(q).toStrictEqual(query);
+            expect(_.filter(query.query._statements, {grouping: 'where'}).length).toBe(2);
+          });
+    
+          it('allows passing a function to query', () => {
+            const query = User.query();
+            expect(_.filter(query.query._statements, {grouping: 'where'}).length).toBe(0);
+    
+            const q = query.where((q) => {
+              q.where('id', 1).orWhere('id', '>', '10');
+            });
+            
+            expect(q).toEqual(query);
+            expect(_.filter(query.query._statements, {grouping: 'where'}).length).toBe(1);
+          });
+        });
+
+        describe('#first() & #find()', () => {
+          it('issues a first (get one), triggering a fetched event, returning a promise', () => {
+            const query = User.query().where('id', 1);
+
+            return query.first().then((user) => {
+              expect(user).toBeInstanceOf(User);
+              expect(user.id).toBe(1);
+              expect(user.name).toBe('Shuri');
+            });
+          });
+    
+          it('allows specification of select columns in query', () => {
+            return User.query().where('id', 1).select(['id', 'first_name']).first().then((user) => {
+              expect(user.toData()).toEqual({id: 1, first_name: 'Tim'});
+            });
+          });
+    
+          it('resolves to null if no record exists and the {require: false} option is passed', () => {
+            return User.query().where('id', 200).first().then(user => {
+              expect(user).toBeNull();
+            })
+          });
+    
+          it('rejects with an error if no record exists', () => {
+            return User.query().where('id', 200).firstOrFail().then(user => {
+              // expect(user).toBeNull();
+            }).catch(e => {
+              expect(e).toBeInstanceOf(ModelNotFoundError);
+            });
+          });
+    
+          it('locks the table when called with the forUpdate option during a transaction', () => {
+            let userId;
+
+            const user = new User;
+            user.first_name = 'foo';
+            return user.save().then(() => {
+              userId = user.id;
+
+              return Promise.all([
+                sutando.transaction(trx => {
+                  return User.query(trx).forUpdate().find(user.id)
+                  .then(() => {
+                    return Promise.delay(100);
+                  })
+                  .then(() => {
+                    return User.query(trx).find(user.id);
+                  })
+                  .then(user => {
+                    expect(user.first_name).toBe('foo');
+                  });
+                }),
+                Promise.delay(25).then(() => {
+                  return User.query().where('id', user.id).update({
+                    first_name: 'changed',
+                  });
+                })
+              ]);
+            }).then(() => {
+              return User.query().where('id', userId).delete();
+            });
+          });
+    
+          it('locks the table when called with the forShare option during a transaction', () => {
+            let userId;
+            const user = new User({ first_name: 'foo'});
+
+            return user.save()
+              .then(() => {
+                userId = user.id;
+
+                return Promise.all([
+                  sutando.transaction(trx => {
+                    return User.query(trx).forShare().find(user.id)
+                      .then(() => Promise.delay(100))
+                      .then(() => User.query(trx).find(user.id))
+                      .then(user => {
+                        expect(user.first_name).toBe('foo');
+                      })
+                  }),
+                  Promise.delay(60).then(() => {
+                    return User.query().where('id', user.id).update({
+                      first_name: 'changed',
+                    });
+                  })
+                ])
+              })
+              .then(() => {
+                return User.query().where('id', userId).delete()
+              });
+          });
+        });
+
+        describe('#get()', () => {
+          it('should merge models with duplicate ids by default', () => {
+            return User.query().get().then((users) => {
+              expect(users).toBeInstanceOf(Collection);
+              expect(users.count()).toBe(2);
+              expect(users.pluck('name').all()).toEqual(['Shuri', 'Alice']);
+            });
+          });
+    
+          it('returns an empty collection if there are no results', () => {
+            return User.query()
+              .where('name', 'hal9000')
+              .get()
+              .then((users) => {
+                expect(users).toBeInstanceOf(Collection);
+                expect(users.count()).toBe(0);
+              });
+          });
+        });
+
+        describe('#paginate()', () => {
+          it('fetches a single page of results with defaults', () => {
+            return User.query().paginate()
+              .then((users) => {
+                expect(users).toBeInstanceOf(Paginator);
+              });
+          });
+    
+          it('returns an empty collection if there are no results', () => {
+            return Comment.query().delete()
+              .then(() => Comment.query().paginate())
+              .then(results => {
+                expect(results).toBeInstanceOf(Paginator);
+                expect(results.count()).toBe(0);
+              });
+          });
+    
+          it('fetches a page of results with specified page size', () => {
+            return User.query().paginate(2)
+              .then((results) => {
+                expect(results).toBeInstanceOf(Paginator);
+                expect(results.count()).toBe(2);
+                expect(results.total()).toBe(2);
+                expect(results.currentPage()).toBe(1);
+              });
+          });
+    
+          it('fetches a page by page number', () => {
+            return User.query().orderBy('id', 'asc').paginate(2, 1)
+              .then((results) => {
+                expect(results.get(0).id).toBe(1);
+                expect(results.get(1).id).toBe(2);
+              });
+          });
+    
+          describe('inside a transaction', () => {
+            it('returns consistent results for rowCount and number of models', () => {
+              return sutando.transaction(trx => {
+                return Post.query(trx).insert({
+                  user_id: 0,
+                  name: 'a new post'
+                }).then(() => {
+                  return Post.query(trx).paginate(25);
+                }).then(posts => {
+                  expect(posts.total()).toBe(posts.count());
+                })
+              });
+            });
+          });
+    
+          describe('with groupBy', () => {
+            it('counts grouped rows instead of total rows', () => {
+              let total;
+
+              return Post.query().count().then(count => {
+                total = parseInt(count);
+
+                return Post.query()
+                  // .max('id')
+                  .select('user_id')
+                  .groupBy('user_id')
+                  .whereNotNull('user_id')
+                  .paginate();
+              }).then(posts => {
+                expect(posts.count()).toBeLessThanOrEqual(total);
+              });
+            });
+    
+            it('counts grouped rows when using table name qualifier', () => {
+              let total;
+
+              Post.query().count()
+                .then(count => {
+                  total = parseInt(count, 10);
+
+                  return Post.query()
+                    // .max('id')
+                    .select('user_id')
+                    .groupBy('posts.user_id')
+                    .whereNotNull('user_id')
+                    .paginate();
+                })
+                .then(posts => {
+                  expect(posts.count()).toBeLessThanOrEqual(total);
+                });
+            });
+          });
+    
+          describe('with distinct', () => {
+            it('counts distinct occurences of a column instead of total rows', () => {
+              let total;
+
+              return Post.query().count()
+                .then(count => {
+                  total = count;
+                  return Post.query().distinct('user_id').get();
+                })
+                .then(distinctPostUsers => {
+                  expect(distinctPostUsers.count()).toBeLessThanOrEqual(total);
+                });
+            });
+          });
+        });
+
+        describe('orderBy', () => {
+          it('returns results in the correct order', () => {
+            const asc = User.query()
+              .orderBy('id', 'asc')
+              .get()
+              .then(result => {
+                return result.pluck('id').all();
+              });
+
+            const desc = User.query()
+              .orderBy('id', 'desc')
+              .get()
+              .then(result => {
+                return result.pluck('id').all();
+              });
+    
+            return Promise.all([asc, desc]).then((results) => {
+              expect(results[0].reverse()).toEqual(results[1]);
+            });
+          });
+        });
+
+        describe('#save()', () => {
+          // after(() => {
+          //   return Site.forge({id: 6})
+          //     .destroy()
+          //     .catch(() => {});
+          // });
+    
+          it('saves a new object', async () => {
+            const post = new Post;
+            post.user_id = 0;
+            post.name = 'Fourth post';
+            await post.save();
+
+            expect(Number(post.id)).toBe(7);
+
+            const posts = await Post.query().get();
+            expect(posts.last().id).toBe(7);
+            expect(posts.last().name).toBe('Fourth post');
+            expect(posts.count()).toBe(7);
+          });
+    
+          it('saves all attributes that are currently set on the model plus the ones passed as argument', async () => {
+            const post = new Post({
+              name: 'A Cool Blog',
+            });
+            post.user_id = 1;
+
+            await post.save();
+            expect(post.toData()).toHaveProperty('name', 'A Cool Blog');
+            expect(post.toData()).toHaveProperty('user_id', 1);
+
+            await post.refresh();
+            expect(post.toData()).toHaveProperty('name', 'A Cool Blog');
+            expect(post.toData()).toHaveProperty('user_id', 1);
+
+            await post.delete();
+          });
+    
+          it('updates an existing object', () => {
+            return (Post.query().where('id', 5).update({name: 'Fourth Post Updated'}))
+              .then(() => {
+                return Post.query().where('name', 'Fourth Post Updated').get();
+              })
+              .then(posts => {
+                expect(posts.last().id).toBe(5);
+                expect(posts.all()).toHaveLength(1);
+              });
+          });
+    
+          it('allows passing a method to save, to call insert or update explicitly', () => {
+            return Post.query().insert({id: 9, user_id: 0, name: 'Fifth post, explicity created'})
+              .then(() => {
+                return Post.query().all();
+              })
+              .then(posts => {
+                expect(posts.count()).toBe(9);
+                expect(posts.last().id).toBe(9);
+              });
+          });
+    
+          it('should error if updated row was not affected', async () => {
+            return await expect(Post.query().insert({
+              id: 7,
+              user_id: 0,
+              name: 'Fifth post, explicity created'
+            })).rejects.toThrow();
+          });
+        });
+
+        describe('#delete()', () => {
+          it('issues a delete to the builder, returning a promise', () => {
+            return Post.query().where('id', 5)
+              .delete()
+              .then(() => {
+                return Post.query().all();
+              })
+              .then(posts => {
+                expect(posts.count()).toBe(8);
+              })
+          });
+    
+          it('will not throw an error when trying to delete a non-existent object', () => {
+            return Post.query().where('id', 1024).delete().then(count => {
+              expect(count).toBe(0);
+            });
+          });
+        });
+
+        describe('#count()', () => {
+          it('counts the number of models in a collection', () => {
+            return Post.query().count()
+              .then(count => {
+                expect(count).toBe(8);
+              });
+          });
+    
+          it('counts a filtered query', () => {
+            return Post.query().where('user_id', 1).count()
+              .then(count => {
+                expect(count).toBe(2)
+              })
+          });
+        });
+
+        describe('timestamps', () => {
+          describe('Date value', () => {
+            let admin;
+    
+            beforeEach(() => {
+              admin = new Admin;
+              admin.username = 'a_new_user';
+              return admin.save();
+            });
+    
+            afterEach(() => {
+              return admin.delete();
+            });
+    
+            it('is the same between saving and fetching models', async () => {
+              const newAdmin = await Admin.query().find(admin.id);
+              expect(newAdmin.created_at).toEqual(admin.created_at);
+              expect(newAdmin.updated_at).toEqual(admin.updated_at);
+            });
+    
+            it('is the same between saving and fetching all models', () => {
+              return Admin.query()
+                .where('id', admin.id)
+                .get()
+                .then(admins => {
+                  expect(admins.get(0).created_at).toEqual(admin.created_at);
+                  expect(admins.get(0).updated_at).toEqual(admin.updated_at);
+                });
+            });
+    
+            it('is the same after updating model', () => {
+              admin.username = 'updated_user';
+              return admin.save()
+                .then(() => {
+                  return Admin.query().find(admin.id);
+                })
+                .then(newAdmin => {
+                  expect(newAdmin.created_at).toEqual(admin.created_at);
+                  expect(newAdmin.updated_at).toEqual(admin.updated_at);
+                });
+            });
+          });
+    
+          describe('On update', () => {
+            it('will set the updated_at timestamp to the user supplied value', () => {
+              const admin = new Admin;
+              let oldUpdatedAt;
+              const newUpdatedAt = '2022-02-02 12:13:14';
+
+              return admin.save()
+                .then(() => {
+                  oldUpdatedAt = admin.updated_at;
+                  admin.updated_at = newUpdatedAt;
+                  return admin.save();
+                })
+                .then(() => {
+                  expect(admin.updated_at).toEqual(newUpdatedAt);
+                  expect(admin.updated_at).not.toEqual(oldUpdatedAt);
+                });
+            });
+    
+            it('will set the created_at timestamp to the user supplied value', () => {
+              const admin = new Admin;
+              let oldCreatedAt;
+              const newCreatedAt = '2022-02-02 12:13:14';
+
+              return admin.save()
+                .then(() => {
+                  oldCreatedAt = admin.created_at;
+                  admin.created_at = newCreatedAt;
+                  return admin.save();
+                })
+                .then(() => {
+                  expect(admin.created_at).toEqual(newCreatedAt);
+                  expect(admin.created_at).not.toEqual(oldCreatedAt);
+                });
+            });
+          });
+    
+          describe('On insert', () => {
+            let model;
+    
+            beforeEach(() => {
+              model = new User;
+            });
+    
+            it('sets created_at and updated_at when is passed as option', () => {
+              return model.save()
+                .then(() => {
+                  expect(model.create_at).not.toBeNaN();
+                  expect(model.updated_at).not.toBeNaN();
+                });
+            });
+    
+            it("sets created_at to the user specified value if present in the model's attributes", () => {
+              const date = '1999-01-01 01:01:01';
+              model.created_at = date;
+              return model.save()
+                .then(() => {
+                  expect(model.created_at).toBe(date);
+                });
+            });
+    
+            it("sets updated_at to the user specified value if present in the model's attributes", () => {
+              const date = '1999-01-01 01:01:01';
+              model.updated_at = date;
+              return model.save()
+                .then(() => {
+                  expect(model.updated_at).toBe(date);
+                });
+            });
+          });
+        });
+
+        describe('exists', () => {
+          it('uses the id to determine if the model exists', async () => {
+            const user = new User;
+            expect(user.exists).toBeFalsy();
+
+            user.name = 'new_user';
+            await user.save();
+            expect(user.exists).toBeTruthy();
+
+            const newUser = await User.query().find(user.id);
+            expect(newUser.exists).toBeTruthy();
+          });
+        });
+
+        describe('#isDirty()', () => {
+          it('returns true if passing an attribute name that has changed since the last sync', async () => {
+            const user = await User.query().first();
+            user.name = 'changed name';
+            expect(user.isDirty('name')).toBe(true);
+          });
+    
+          it('returns false if passing an attribute name that has not changed since the last sync', async () => {
+            const user = await User.query().first();
+            user.name = 'changed name';
+            expect(user.isDirty('id')).toBe(false);
+          });
+    
+          it('returns true if no arguments are provided and an attribute of the model has changed', async () => {
+            const user = await User.query().first();
+            user.name = 'changed name';
+            expect(user.isDirty()).toBe(true);
+          });
+    
+          it("returns false if no arguments are provided and the model hasn't changed", async () => {
+            const user = await User.query().first();
+            expect(user.isDirty()).toBe(false);
+          });
+    
+          it('returns false after an attribute is changed and the model is saved', async () => {
+            let originalName;
+
+            const post = await Post.query().first();
+            originalName = post.name;
+            post.name = 'changed name';
+            await post.save();
+            expect(post.isDirty()).toBe(false);
+
+            if (originalName) {
+              await Post.query().insert({
+                user_id: 0,
+                name: originalName
+              });
+            }
+          });
+        });
+      });
+
+      describe('Relation', () => {
+        describe('Standard Relations', () => {
+          it('handles belongsTo', async () => {
+            const post = await Post.query().find(1);
+            const author = await post.related('author').first();
+            expect(author).toBeInstanceOf(User);
+            expect(author.id).toBe(post.user_id);
+          });
+  
+          it('handles hasMany (posts)', async () => {
+            const user = await User.query().find(1);
+            const posts = await user.related('posts').get();
+            expect(posts).toBeInstanceOf(Collection);
+            posts.map(post => {
+              expect(user.id).toBe(post.user_id);
+            });
+          });
+        });
+
+        describe('Eager Loading', () => {
+          it('eager loads "hasOne" relationships correctly', async () => {
+            return Post.query().with('thumbnail').find(1)
+              .then(post => {
+                const xpost = post.toData();
+                _.unset(xpost, 'created_at');
+                _.unset(xpost, 'updated_at');
+                expect(xpost).toEqual({"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "thumbnail": null, "user_id": 1});
+              });
+          });
+  
+          it('does not load "hasOne" relationship when it doesn\'t exist', () => {
+            return Post.query().with('thumbnail').find(3)
+              .then(post => {
+                expect(post.toData().thumbnail).toBeNull();
+              });
+          });
+  
+          it('eager loads "hasMany" relationships correctly', () => {
+            return User.query().with('posts').find(1)
+              .then(user => {
+                const xuser = user.toData();
+                _.unset(xuser, 'created_at');
+                _.unset(xuser, 'updated_at');
+                xuser.posts.forEach(post => {
+                  _.unset(post, 'created_at');
+                  _.unset(post, 'updated_at');
+                })
+                expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "user_id": 1}, {"content": null, "id": 8, "name": "A Cool Blog", "user_id": 1}]});
+              });
+          });
+  
+          it('eager loads "belongsTo" relationships correctly', () => {
+            return Post.query().with('author').find(1)
+              .then(post => {
+                const author = post.toData().author;
+                _.unset(author, 'created_at');
+                _.unset(author, 'updated_at');
+                expect(author).toEqual({
+                  "first_name": "Tim", "id": 1, "name": "Shuri",
+                });
+              });
+          });
+  
+          it('does not load "belongsTo" relationship when foreignKey is null', () => {
+            return Post.query().with('author').find(4)
+              .then(post => {
+                expect(post.toData().author).toBeNull();
+              });
+          });
+
+          it('eager loads "belongsToMany" models correctly', () => {
+            return Post.query().with('tags').find(1)
+              .then(post => {
+                const xpost = post.toData();
+                _.unset(xpost, 'created_at');
+                _.unset(xpost, 'updated_at');
+                xpost.tags.forEach(tag => {
+                  _.unset(tag, 'created_at');
+                  _.unset(tag, 'updated_at');
+                })
+
+                expect(xpost).toEqual({
+                  "content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "tags": [{"id": 1, "name": "cool", "pivot": {"post_id": 1, "tag_id": 1}}, {"id": 2, "name": "boring", "pivot": {"post_id": 1, "tag_id": 2}}, {"id": 3, "name": "exciting", "pivot": {"post_id": 1, "tag_id": 3}}], "user_id": 1
+                });
+              });
+          });
+  
+          // it('attaches an empty related model or collection if the `EagerRelation` comes back blank', function() {
+          //   return new Site({id: 3})
+          //     .fetch({
+          //       withRelated: ['meta', 'blogs', 'authors.posts']
+          //     })
+          //     .then(checkTest(this));
+          // });
+  
+          it('maintains eager loaded column specifications', () => {
+            return Post.query().with({
+              author: q => q.select('id', 'name'),
+            }).find(1)
+              .then(post => {
+                const xpost = post.toData();
+                _.unset(xpost, 'created_at');
+                _.unset(xpost, 'updated_at');
+                expect(xpost).toEqual({
+                  "author": {"id": 1, "name": "Shuri"}, "content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "user_id": 1
+                });
+              });
+          });
+
+          it('maintains eager loaded column specifications by string', () => {
+            return Post.query().with('author:id,name').find(1)
+              .then(post => {
+                const xpost = post.toData();
+                _.unset(xpost, 'created_at');
+                _.unset(xpost, 'updated_at');
+                expect(xpost).toEqual({"author": {"id": 1, "name": "Shuri"}, "content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "user_id": 1});
+              });
+          });
+  
+          it('throws an error on undefined first withRelated relations', async () => {
+            await expect(Post.query().with('undefinedRelation').find(1)).rejects.toThrow();
+          });
+  
+          it('throws an error on undefined non-first withRelated relations', async () => {
+            await expect(Post.query().with(['author', 'undefinedRelation']).find(1)).rejects.toThrow();
+          });
+        });
+
+        describe('Nested Eager Loading', () => {
+          it('eager loads "hasMany" -> "belongsToMany"', () => {
+            return User.query().with('posts.tags').first()
+              .then(user => {
+                const xuser = user.toData();
+                _.unset(xuser, 'created_at');
+                _.unset(xuser, 'updated_at');
+                xuser.posts.forEach(post => {
+                  _.unset(post, 'created_at');
+                  _.unset(post, 'updated_at');
+                  post.tags.forEach(tag => {
+                    _.unset(tag, 'created_at');
+                    _.unset(tag, 'updated_at');
+                  })
+                })
+
+                expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "tags": [{"id": 1, "name": "cool", "pivot": {"post_id": 1, "tag_id": 1}}, {"id": 2, "name": "boring", "pivot": {"post_id": 1, "tag_id": 2}}, {"id": 3, "name": "exciting", "pivot": {"post_id": 1, "tag_id": 3}}], "user_id": 1}, {"content": null, "id": 8, "name": "A Cool Blog", "tags": [], "user_id": 1}]});
+              });
+          });
+  
+          it('does multi deep eager loads', () => {
+            return User.query().with({
+              'posts.tags': q => q.orderBy('tags.id', 'desc'),
+            }, 'posts.thumbnail').first()
+              .then(user => {
+                const xuser = user.toData();
+                _.unset(xuser, 'created_at');
+                _.unset(xuser, 'updated_at');
+                xuser.posts.forEach(post => {
+                  _.unset(post, 'created_at');
+                  _.unset(post, 'updated_at');
+                  post.tags.forEach(tag => {
+                    _.unset(tag, 'created_at');
+                    _.unset(tag, 'updated_at');
+                  })
+                })
+                expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "tags": [{"id": 3, "name": "exciting", "pivot": {"post_id": 1, "tag_id": 3}}, {"id": 2, "name": "boring", "pivot": {"post_id": 1, "tag_id": 2}}, {"id": 1, "name": "cool", "pivot": {"post_id": 1, "tag_id": 1}}], "thumbnail": null, "user_id": 1}, {"content": null, "id": 8, "name": "A Cool Blog", "tags": [], "thumbnail": null, "user_id": 1}]});
+              });
+          });
+        });
+
+        describe('Relation load', () => {
+          it('eager loads relations on a populated model', async () => {
+            const post = await Post.query().find(1);
+            expect(post.author).toBeUndefined();
+            expect(post.tags).toBeUndefined();
+
+            await post.load(['author', 'tags']);
+            expect(post.author).toBeInstanceOf(User);
+            expect(post.tags).toBeInstanceOf(Collection);
+            expect(post.author.id).toBe(1);
+            expect(post.tags.count()).toBe(3);
+          });
+  
+          it('eager loads attributes on a collection', async () => {
+            const posts = await Post.query().get();
+            posts.map(post => {
+              expect(post.author).toBeUndefined();
+              expect(post.tags).toBeUndefined();
+            });
+
+            await posts.load(['author', 'tags']);
+            posts.map(post => {
+              expect(post.author).not.toBeUndefined();
+              expect(post.tags).not.toBeUndefined();
+            });
+          });
+        });
+      });
+      
+      describe('Paginator', () => {
+        
+      });
+    });
+  })
+})
+
+

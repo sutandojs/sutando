@@ -1,0 +1,61 @@
+{
+  "name": "sutando",
+  "version": "0.1.0",
+  "description": "A modern Node.js ORM. Makes it enjoyable to interact with your database. Support Mysql, MSSql, MariaDB, Sqlite.",
+  "homepage": "https://sutando.org/",
+  "main": "./src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sutandojs/sutando.git"
+  },
+
+  "engines": {
+    "node": ">=12"
+  },
+  "scripts": {
+    "test:mysql": "jest --client=mysql",
+    "test:sqlite": "jest --client=sqlite"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,json}": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "dependencies": {
+    "collect.js": "^4.34.3",
+    "dayjs": "^1.11.5",
+    "knex": "^2.2.0",
+    "lodash": "^4.17.21",
+    "pluralize": "^8.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.3",
+    "mysql2": "2.3.3",
+    "pg": "8.8.0",
+    "sqlite3": "5.1.2",
+    "husky": "^8.0.1",
+    "prettier": "2.6.2",
+    "lint-staged": "^13.0.0",
+    "tedious": "15.1.0"
+  },
+  "keywords": [
+    "sutando",
+    "ORM",
+    "mysql",
+    "mariadb",
+    "sqlite",
+    "postgresql",
+    "postgres",
+    "pg",
+    "mssql"
+  ],
+  "author": "Kidd Yu",
+  "readmeFilename": "README.md",
+  "license": "MIT"
+}
