@@ -69,7 +69,7 @@ class Model {
     }
 
     this.changes = Object.keys(attributes);
-    this.attributes = attributes;
+    this.attributes = { ...this.attributes, ...attributes };
 
     return this.asProxy();
   }
@@ -80,7 +80,7 @@ class Model {
     model.exists = exists;
     model.connection = this.getConnectionName();
     model.table = this.getTable();
-    model.attributes = attributes;
+    model.attributes = { ...this.attributes, ...attributes };
 
     return model;
   }
@@ -434,10 +434,8 @@ class Model {
       if (this.usesTimestamps()) {
         this.updateTimestamps();
       }
-      
-      const dirty = this.getDirty();
 
-      const data = await query.insert(dirty);
+      const data = await query.insert(this.getAttributes());
       this.exists = true;
       this.attributes[this.getKeyName()] = data[0];
 
