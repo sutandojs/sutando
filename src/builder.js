@@ -237,7 +237,7 @@ class Builder {
 
   newModelInstance(attributes = {}) {
     return this.model.newInstance(attributes).setConnection(
-      this.query.getConnectionName()
+      this.model.getConnectionName()
     );
   }
 
