@@ -414,7 +414,7 @@ class Model {
   }
 
   async save(options = {}) {
-    const query = this.newQuery(options.client || this.trx).setModel(this);
+    const query = this.newQuery(options.client || options.transaction || this.trx).setModel(this);
     let saved;
 
     if (this.exists) {
@@ -449,16 +449,16 @@ class Model {
     return saved;
   }
 
-  delete() {
+  delete(options = {}) {
     if (this.useSoftDeletes()) {
-      this.softDelete();
+      this.softDelete(options);
     }
 
-    this.forceDelete();
+    this.forceDelete(options);
   }
 
-  async softDelete() {
-    const query = this.newQuery().setModel(this).where(this.getKeyName(), this.getKey());
+  async softDelete(options = {}) {
+    const query = this.newQuery(options.client || options.transaction || this.trx).setModel(this).where(this.getKeyName(), this.getKey());
 
     const time = new Date;
 
@@ -476,18 +476,18 @@ class Model {
     await query.update(columns);
   }
 
-  restore() {
+  restore(options = {}) {
     this[this.getDeletedAtColumn()] = null;
     this.exists = true;
-    return this.save();
+    return this.save(options);
   }
 
   trashed() {
     return this[this.getDeletedAtColumn()] !== null;
   }
 
-  forceDelete() {
-    const query = this.newQuery().setModel(this);
+  forceDelete(options = {}) {
+    const query = this.newQuery(options.client || options.transaction || this.trx).setModel(this);
     this.exists = false;
     return query.where(this.getKeyName(), this.getKey()).delete();
   }
