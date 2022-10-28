@@ -2,6 +2,7 @@ const _ = require('lodash');
 const { sutando, Model, Collection, Builder, Paginator } = require('../sutando');
 const config = require(process.env.SUTANDO_CONFIG || './config');
 const { ModelNotFoundError } = require('../sutando/errors');
+const dayjs = require('dayjs');
 
 Promise.delay = function (duration) {
   return new Promise((resolve, reject) => {
@@ -25,12 +26,6 @@ describe('Sutando', () => {
     }).toThrow();
     sutando.connections = {};
   });
-
-  it('should return a same instance', () => {
-    sutando.addConnection(config.mysql);
-
-    expect(sutando.connection()).toBe(sutando.connection());
-  })
 });
 
 describe('Model', () => {
@@ -63,10 +58,6 @@ describe('Model', () => {
 
   class Thumbnail extends Model {}
   class Media extends Model {}
-
-  it('should return a Builder instance', () => {
-    expect(User.query()).toBeInstanceOf(Builder);
-  });
 
   it('return the table name of the plural model name', () => {
     const user = new User;
@@ -210,29 +201,23 @@ describe('Integration test', () => {
   ];
 
   if (process.argv.includes('--client=mysql')) {
-    databases.push({
-      client: 'mysql2',
-      connection: {
-        host: '127.0.0.1',
-        port: 3306,
-        user: 'root',
-        password: '',
-        database: '',
-      },
-    });
+    databases.push(config.mysql);
   } else if (process.argv.includes('--client=sqlite')) {
     databases.push(config.sqlite);
   }
 
   databases.map(config => {
     describe('Client: ' + config.client, () => {
-      sutando.addConnection(config);
+      sutando.addConnection(config, config.client);
+      class Base extends Model {
+        connection = config.client;
+      }
 
-      class Admin extends Model {
+      class Admin extends Base {
         table = 'administrators';
       }
 
-      class User extends Model {
+      class User extends Base {
         hidden = ['password', 'remember_token'];
 
         relationPosts() {
@@ -244,7 +229,7 @@ describe('Integration test', () => {
         }
       }
 
-      class Post extends Model {
+      class Post extends Base {
         scopePublish(query) {
           return query.where('status', 1);
         }
@@ -274,18 +259,19 @@ describe('Integration test', () => {
         }
       }
 
-      class Tag extends Model {
+      class Tag extends Base {
         relationPosts() {
           return this.belongsToMany(Post);
         }
       }
 
-      class Comment extends Model {}
+      class Comment extends Base {}
 
-      class Media extends Model {}
+      class Media extends Base {}
+
+      const connection = sutando.connection(config.client);
 
       beforeAll(() => {
-        const connection = sutando.connection();
         return Promise.all(['users', 'tags', 'posts', 'post_tag', 'administrators', 'comments', 'media'].map(table => {
           return connection.schema.dropTableIfExists(table);
         })).then(() => {
@@ -470,11 +456,18 @@ describe('Integration test', () => {
       });
 
       afterAll(() => {
-        const connection = sutando.connection();
         connection.destroy();
       })
 
       describe('Model', () => {
+        it('should return a same instance', () => {
+          expect(connection).toBe(sutando.connection(config.client));
+        });
+
+        it('should return a Builder instance', () => {
+          expect(User.query()).toBeInstanceOf(Builder);
+        });
+
         describe('first', () => {
           it('should create a new model instance', async () => {
             const user = await User.query().first();
@@ -564,7 +557,7 @@ describe('Integration test', () => {
               userId = user.id;
 
               return Promise.all([
-                sutando.transaction(trx => {
+                connection.transaction(trx => {
                   return User.query(trx).forUpdate().find(user.id)
                   .then(() => {
                     return Promise.delay(100);
@@ -596,7 +589,7 @@ describe('Integration test', () => {
                 userId = user.id;
 
                 return Promise.all([
-                  sutando.transaction(trx => {
+                  connection.transaction(trx => {
                     return User.query(trx).forShare().find(user.id)
                       .then(() => Promise.delay(100))
                       .then(() => User.query(trx).find(user.id))
@@ -674,7 +667,7 @@ describe('Integration test', () => {
     
           describe('inside a transaction', () => {
             it('returns consistent results for rowCount and number of models', () => {
-              return sutando.transaction(trx => {
+              return connection.transaction(trx => {
                 return Post.query(trx).insert({
                   user_id: 0,
                   name: 'a new post'
@@ -883,8 +876,8 @@ describe('Integration test', () => {
     
             it('is the same between saving and fetching models', async () => {
               const newAdmin = await Admin.query().find(admin.id);
-              expect(newAdmin.created_at).toEqual(admin.created_at);
-              expect(newAdmin.updated_at).toEqual(admin.updated_at);
+              expect(dayjs(newAdmin.created_at)).toEqual(dayjs(admin.created_at));
+              expect(dayjs(newAdmin.updated_at)).toEqual(dayjs(admin.updated_at));
             });
     
             it('is the same between saving and fetching all models', () => {
@@ -892,8 +885,8 @@ describe('Integration test', () => {
                 .where('id', admin.id)
                 .get()
                 .then(admins => {
-                  expect(admins.get(0).created_at).toEqual(admin.created_at);
-                  expect(admins.get(0).updated_at).toEqual(admin.updated_at);
+                  expect(dayjs(admins.get(0).created_at)).toEqual(dayjs(admin.created_at));
+                  expect(dayjs(admins.get(0).updated_at)).toEqual(dayjs(admin.updated_at));
                 });
             });
     
@@ -904,8 +897,8 @@ describe('Integration test', () => {
                   return Admin.query().find(admin.id);
                 })
                 .then(newAdmin => {
-                  expect(newAdmin.created_at).toEqual(admin.created_at);
-                  expect(newAdmin.updated_at).toEqual(admin.updated_at);
+                  expect(dayjs(newAdmin.created_at)).toEqual(dayjs(admin.created_at));
+                  expect(dayjs(newAdmin.updated_at)).toEqual(dayjs(admin.updated_at));
                 });
             });
           });
