@@ -737,8 +737,8 @@ class Builder {
     })
   }
 
-  findOrNew(id, columns = ['*']) {
-    const model = this.find(id, columns)
+  async findOrNew(id, columns = ['*']) {
+    const model = await this.find(id, columns)
     if (model !== null) {
       return model;
     }
@@ -746,8 +746,8 @@ class Builder {
     return this.newModelInstance();
   }
 
-  firstOrNew(attributes = {}, values = {}) {
-    const instance = this.where(attributes).first();
+  async firstOrNew(attributes = {}, values = {}) {
+    const instance = await this.where(attributes).first();
     if (instance !== null) {
       return instance;
     }

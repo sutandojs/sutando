@@ -216,8 +216,8 @@ describe('Integration test', () => {
         host: '127.0.0.1',
         port: 3306,
         user: 'root',
-        password: 'Kiddyu21',
-        database: 'ormtest',
+        password: '',
+        database: '',
       },
     });
   } else if (process.argv.includes('--client=sqlite')) {
