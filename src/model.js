@@ -2,6 +2,7 @@ const _ = require('lodash');
 const collect = require('collect.js');
 const pluralize = require('pluralize');
 const Builder = require('./builder');
+const Hooks = require('./hooks');
 const Collection = require('./collection');
 const sutando = require('./sutando');
 const {
@@ -44,6 +45,8 @@ class Model {
   static UPDATED_AT = 'updated_at';
   static DELETED_AT = 'deleted_at';
   static globalScopes = [];
+  static booted = false;
+  static hooks = null;
 
   static query(trx = null) {
     const instance = new this;
@@ -63,6 +66,62 @@ class Model {
     return new this(attributes);
   }
 
+  static addHook(hook, callback) {
+    if (this.hooks instanceof Hooks === false) {
+      this.hooks = new Hooks;
+    }
+
+    this.hooks.add(hook, callback);
+  }
+
+  static creating(callback) {
+    this.addHook('creating', callback);
+  }
+
+  static created(callback) {
+    this.addHook('created', callback);
+  }
+
+  static updating(callback) {
+    this.addHook('updating', callback);
+  }
+
+  static updated(callback) {
+    this.addHook('updated', callback);
+  }
+
+  static saving(callback) {
+    this.addHook('saving', callback);
+  }
+
+  static saved(callback) {
+    this.addHook('saved', callback);
+  }
+
+  static deleting(callback) {
+    this.addHook('deleting', callback);
+  }
+
+  static deleted(callback) {
+    this.addHook('deleted', callback);
+  }
+
+  static restoring(callback) {
+    this.addHook('restoring', callback);
+  }
+
+  static restored(callback) {
+    this.addHook('restored', callback);
+  }
+
+  async execHooks(hook, options) {
+    if (this.constructor.hooks instanceof Hooks === false) {
+      return;
+    }
+
+    return await this.constructor.hooks.exec(hook, [this, options]);
+  }
+
   constructor(attributes = {}) {
     if (!this.table) {
       this.table = pluralize(_.snakeCase(this.constructor.name));
@@ -71,7 +130,20 @@ class Model {
     this.changes = Object.keys(attributes);
     this.attributes = { ...this.attributes, ...attributes };
 
+    this.constructor.bootIfNotBooted();
+
     return this.asProxy();
+  }
+
+  static bootIfNotBooted() {
+    if (this.booted === false) {
+      this.boot();
+      this.booted = true;
+    }
+  }
+
+  static boot() {
+    //
   }
 
   newInstance(attributes = {}, exists = false) {
@@ -414,23 +486,33 @@ class Model {
   }
 
   async save(options = {}) {
-    const query = this.newQuery(options.client || options.transaction || this.trx).setModel(this);
+    const query = this.newQuery(options.client).setModel(this);
     let saved;
+
+    await this.execHooks('saving', options);
 
     if (this.exists) {
       if (this.isDirty() === false) {
         saved = true;
       } else {
+        await this.execHooks('updating', options);
+
         if (this.usesTimestamps()) {
           this.updateTimestamps();
         }
 
         const dirty = this.getDirty();
 
-        await query.where(this.getKeyName(), this.getKey()).query.update(dirty);
+        if (Object.keys(dirty).length > 0) {
+          await query.where(this.getKeyName(), this.getKey()).query.update(dirty);
+          await this.execHooks('updated', options);
+        }
+
         saved = true;
       }
     } else {
+      await this.execHooks('creating', options);
+
       if (this.usesTimestamps()) {
         this.updateTimestamps();
       }
@@ -439,26 +521,33 @@ class Model {
       this.exists = true;
       this.attributes[this.getKeyName()] = data[0];
 
+      await this.execHooks('created', options);
+
       saved = true;
     }
 
     if (saved) {
       this.changes = [];
+      await this.execHooks('saved', options);
     }
 
     return saved;
   }
 
-  delete(options = {}) {
+  async delete(options = {}) {
     if (this.useSoftDeletes()) {
-      this.softDelete(options);
+      await this.softDelete(options);
+    } else {
+      await this.forceDelete(options);
     }
 
-    this.forceDelete(options);
+    return true;
   }
 
   async softDelete(options = {}) {
-    const query = this.newQuery(options.client || options.transaction || this.trx).setModel(this).where(this.getKeyName(), this.getKey());
+    await this.execHooks('deleting', options);
+
+    const query = this.newQuery(options.client).setModel(this).where(this.getKeyName(), this.getKey());
 
     const time = new Date;
 
@@ -474,22 +563,37 @@ class Model {
     }
 
     await query.update(columns);
+
+    await this.execHooks('deleted', options);
   }
 
-  restore(options = {}) {
+  async forceDelete(options = {}) {
+    await this.execHooks('deleting', options);
+
+    this.forceDeleting = true;
+    const query = this.newQuery(options.client).setModel(this);
+    this.exists = false;
+    const result = await query.where(this.getKeyName(), this.getKey()).delete();
+    this.forceDeleting = false;
+
+    await this.execHooks('deleted', options);
+    return result;
+  }
+
+  async restore(options = {}) {
+    await this.execHooks('restoring', options);
+
     this[this.getDeletedAtColumn()] = null;
     this.exists = true;
-    return this.save(options);
+    const result =  await this.save(options);
+
+    await this.execHooks('restored', options);
+
+    return result;
   }
 
   trashed() {
     return this[this.getDeletedAtColumn()] !== null;
-  }
-
-  forceDelete(options = {}) {
-    const query = this.newQuery(options.client || options.transaction || this.trx).setModel(this);
-    this.exists = false;
-    return query.where(this.getKeyName(), this.getKey()).delete();
   }
 
   fresh() {

@@ -1,7 +1,7 @@
 const _ = require('lodash');
-const { sutando, Model, Collection, Builder, Paginator } = require('../sutando');
+const { sutando, Model, Collection, Builder, Paginator } = require('../src');
 const config = require(process.env.SUTANDO_CONFIG || './config');
-const { ModelNotFoundError } = require('../sutando/errors');
+const { ModelNotFoundError } = require('../src/errors');
 const dayjs = require('dayjs');
 
 Promise.delay = function (duration) {
@@ -757,12 +757,6 @@ describe('Integration test', () => {
         });
 
         describe('#save()', () => {
-          // after(() => {
-          //   return Site.forge({id: 6})
-          //     .destroy()
-          //     .catch(() => {});
-          // });
-    
           it('saves a new object', async () => {
             const post = new Post;
             post.user_id = 0;
@@ -811,7 +805,7 @@ describe('Integration test', () => {
                 return Post.query().all();
               })
               .then(posts => {
-                expect(posts.count()).toBe(9);
+                expect(posts.count()).toBe(8);
                 expect(posts.last().id).toBe(9);
               });
           });
@@ -833,7 +827,7 @@ describe('Integration test', () => {
                 return Post.query().all();
               })
               .then(posts => {
-                expect(posts.count()).toBe(8);
+                expect(posts.count()).toBe(7);
               })
           });
     
@@ -848,14 +842,14 @@ describe('Integration test', () => {
           it('counts the number of models in a collection', () => {
             return Post.query().count()
               .then(count => {
-                expect(count).toBe(8);
+                expect(count).toBe(7);
               });
           });
     
           it('counts a filtered query', () => {
             return Post.query().where('user_id', 1).count()
               .then(count => {
-                expect(count).toBe(2)
+                expect(count).toBe(1)
               })
           });
         });
@@ -1078,7 +1072,7 @@ describe('Integration test', () => {
                   _.unset(post, 'created_at');
                   _.unset(post, 'updated_at');
                 })
-                expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "user_id": 1}, {"content": null, "id": 8, "name": "A Cool Blog", "user_id": 1}]});
+                expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "user_id": 1}]});
               });
           });
   
@@ -1175,7 +1169,7 @@ describe('Integration test', () => {
                   })
                 })
 
-                expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "tags": [{"id": 1, "name": "cool", "pivot": {"post_id": 1, "tag_id": 1}}, {"id": 2, "name": "boring", "pivot": {"post_id": 1, "tag_id": 2}}, {"id": 3, "name": "exciting", "pivot": {"post_id": 1, "tag_id": 3}}], "user_id": 1}, {"content": null, "id": 8, "name": "A Cool Blog", "tags": [], "user_id": 1}]});
+                expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "tags": [{"id": 1, "name": "cool", "pivot": {"post_id": 1, "tag_id": 1}}, {"id": 2, "name": "boring", "pivot": {"post_id": 1, "tag_id": 2}}, {"id": 3, "name": "exciting", "pivot": {"post_id": 1, "tag_id": 3}}], "user_id": 1}]});
               });
           });
   
@@ -1195,7 +1189,7 @@ describe('Integration test', () => {
                     _.unset(tag, 'updated_at');
                   })
                 })
-                expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "tags": [{"id": 3, "name": "exciting", "pivot": {"post_id": 1, "tag_id": 3}}, {"id": 2, "name": "boring", "pivot": {"post_id": 1, "tag_id": 2}}, {"id": 1, "name": "cool", "pivot": {"post_id": 1, "tag_id": 1}}], "thumbnail": null, "user_id": 1}, {"content": null, "id": 8, "name": "A Cool Blog", "tags": [], "thumbnail": null, "user_id": 1}]});
+                expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "tags": [{"id": 3, "name": "exciting", "pivot": {"post_id": 1, "tag_id": 3}}, {"id": 2, "name": "boring", "pivot": {"post_id": 1, "tag_id": 2}}, {"id": 1, "name": "cool", "pivot": {"post_id": 1, "tag_id": 1}}], "thumbnail": null, "user_id": 1}]});
               });
           });
         });
@@ -1225,6 +1219,119 @@ describe('Integration test', () => {
               expect(post.author).not.toBeUndefined();
               expect(post.tags).not.toBeUndefined();
             });
+          });
+        });
+      });
+
+      describe('Hooks', () => {
+        beforeEach(() => {
+          hits = {
+            creating: 0,
+            created: 0,
+            updating: 0,
+            updated: 0,
+            saving: 0,
+            saved: 0,
+            deleting: 0,
+            deleted: 0,
+          }
+        });
+
+        class Post extends Base {}
+
+        Post.creating(() => {
+          hits.creating++;
+        });
+        Post.created(() => {
+          hits.created++;
+        });
+        Post.updating(() => {
+          hits.updating++;
+        });
+        Post.updated(() => {
+          hits.updated++;
+        });
+        Post.saving(() => {
+          hits.saving++;
+        });
+        Post.saved(() => {
+          hits.saved++;
+        });
+        Post.deleting(() => {
+          hits.deleting++;
+        });
+        Post.deleted(() => {
+          hits.deleted++;
+        });
+
+
+        it('hit creating, created, saving, saved hooks if use save() create post', async () => {
+          const post = new Post;
+          post.user_id = 0;
+          post.name = 'Test create hook';
+          await post.save();
+
+          expect(hits).toEqual({
+            creating: 1,
+            created: 1,
+            updating: 0,
+            updated: 0,
+            saving: 1,
+            saved: 1,
+            deleting: 0,
+            deleted: 0,
+          });
+        });
+        
+
+        it('hit creating, created hooks if use create() create post', async () => {
+          await Post.query().create({
+            user_id: 0,
+            name: 'A hook post',
+          });
+
+          expect(hits).toEqual({
+            creating: 1,
+            created: 1,
+            updating: 0,
+            updated: 0,
+            saving: 1,
+            saved: 1,
+            deleting: 0,
+            deleted: 0,
+          });
+        });
+
+        it('hit updating, updated, saving, saved hooks if use save() update post', async () => {
+          const post = await Post.query().find(2);
+          post.name = 'Test update hook',
+          await post.save();
+
+          expect(hits).toEqual({
+            creating: 0,
+            created: 0,
+            updating: 1,
+            updated: 1,
+            saving: 1,
+            saved: 1,
+            deleting: 0,
+            deleted: 0,
+          });
+        });
+
+        it('hit deleting, deleted hooks if delete a post', async () => {
+          const post = await Post.query().find(2);
+          await post.delete();
+
+          expect(hits).toEqual({
+            creating: 0,
+            created: 0,
+            updating: 0,
+            updated: 0,
+            saving: 0,
+            saved: 0,
+            deleting: 1,
+            deleted: 1,
           });
         });
       });
