@@ -814,7 +814,7 @@ class Builder {
     return this.query.pluck(column).then(data => new Collection(data));
   }
 
-  destroy(ids) {
+  async destroy(ids) {
     if (ids instanceof Collection) {
       ids = ids.modelKeys();
     }
@@ -823,7 +823,7 @@ class Builder {
       ids = ids.all();
     }
 
-    ids = _.isArray($ids) ? ids : Array.prototype.slice.call(arguments);
+    ids = _.isArray(ids) ? ids : Array.prototype.slice.call(arguments);
 
     if (ids.length === 0) {
       return 0;
@@ -832,7 +832,16 @@ class Builder {
     const instance = this.model.newInstance();
     const key = instance.getKeyName();
 
-    return instance.whereIn(key, ids).delete();
+    let count = 0;
+    const models = await this.model.newModelQuery().whereIn(key, ids).get();
+
+    for (const model of models) {
+      if (await model.delete()) {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   async get(columns = '*') {
