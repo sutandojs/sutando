@@ -792,22 +792,26 @@ class Builder {
     return this;
   }
 
-  find(ids, columns = '*') {
+  async find(id, columns = '*') {
+    if (_.isArray(id) || id instanceof Collection) {
+      return await this.findMany(id, columns);
+    }
+
+    return await this.where(this.model.getKeyName(), id).first(columns);
+  }
+
+  async findMany(ids, columns = '*') {
     if (ids instanceof Collection) {
       ids = ids.modelKeys();
     }
 
-    if (ids instanceof BaseCollection) {
-      ids = ids.all();
+    ids = _.isArray(ids) ? ids : [ids];
+
+    if (ids.length === 0) {
+      return new Collection([]);
     }
 
-    ids = _.isArray(ids) ? ids : Array.prototype.slice.call(arguments);
-
-    this.whereIn(this.model.getKeyName(), ids);
-    
-    return this.get(columns).then(data => {
-      return data.count() > 1 ? data : data.first()
-    });
+    return await this.whereIn(this.model.getKeyName(), ids).get(columns);
   }
 
   pluck(column) {
