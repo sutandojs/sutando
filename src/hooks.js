@@ -10,6 +10,8 @@ class Hooks {
     deleted: [],
     restoring: [],
     restored: [],
+    trashed: [],
+    forceDeleted: [],
   };
 
   add(hook, callback) {

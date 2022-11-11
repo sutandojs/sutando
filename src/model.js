@@ -114,6 +114,14 @@ class Model {
     this.addHook('restored', callback);
   }
 
+  static trashed(callback) {
+    this.addHook('trashed', callback);
+  }
+
+  static forceDeleted(callback) {
+    this.addHook('forceDeleted', callback);
+  }
+
   async execHooks(hook, options) {
     if (this.constructor.hooks instanceof Hooks === false) {
       return;
@@ -565,6 +573,7 @@ class Model {
     await query.update(columns);
 
     await this.execHooks('deleted', options);
+    await this.execHooks('trashed', options);
   }
 
   async forceDelete(options = {}) {
@@ -573,10 +582,11 @@ class Model {
     this.forceDeleting = true;
     const query = this.newQuery(options.client).setModel(this);
     this.exists = false;
-    const result = await query.where(this.getKeyName(), this.getKey()).delete();
+    const result = await query.where(this.getKeyName(), this.getKey()).query.delete();
     this.forceDeleting = false;
 
     await this.execHooks('deleted', options);
+    await this.execHooks('forceDeleted', options);
     return result;
   }
 

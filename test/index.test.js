@@ -1224,7 +1224,13 @@ describe('Integration test', () => {
       });
 
       describe('Hooks', () => {
-        beforeEach(() => {
+        beforeAll(async () => {
+          await connection.schema.table('posts', (table) => {
+            table.timestamp('deleted_at').nullable();
+          })
+        });
+
+        beforeEach(async () => {
           hits = {
             creating: 0,
             created: 0,
@@ -1234,10 +1240,14 @@ describe('Integration test', () => {
             saved: 0,
             deleting: 0,
             deleted: 0,
+            trashed: 0,
+            forceDeleted: 0,
           }
         });
 
-        class Post extends Base {}
+        class Post extends Base {
+          softDeletes = true;
+        }
 
         Post.creating(() => {
           hits.creating++;
@@ -1263,6 +1273,12 @@ describe('Integration test', () => {
         Post.deleted(() => {
           hits.deleted++;
         });
+        Post.trashed(() => {
+          hits.trashed++;
+        });
+        Post.forceDeleted(() => {
+          hits.forceDeleted++;
+        });
 
 
         it('hit creating, created, saving, saved hooks if use save() create post', async () => {
@@ -1280,11 +1296,13 @@ describe('Integration test', () => {
             saved: 1,
             deleting: 0,
             deleted: 0,
+            trashed: 0,
+            forceDeleted: 0,
           });
         });
         
 
-        it('hit creating, created hooks if use create() create post', async () => {
+        it('hit creating, created, saving, saved hooks if use create() create post', async () => {
           await Post.query().create({
             user_id: 0,
             name: 'A hook post',
@@ -1299,6 +1317,8 @@ describe('Integration test', () => {
             saved: 1,
             deleting: 0,
             deleted: 0,
+            trashed: 0,
+            forceDeleted: 0,
           });
         });
 
@@ -1316,10 +1336,12 @@ describe('Integration test', () => {
             saved: 1,
             deleting: 0,
             deleted: 0,
+            trashed: 0,
+            forceDeleted: 0,
           });
         });
 
-        it('hit deleting, deleted hooks if delete a post', async () => {
+        it('hit deleting, deleted, trashed hooks if soft delete a post', async () => {
           const post = await Post.query().find(2);
           await post.delete();
 
@@ -1332,6 +1354,26 @@ describe('Integration test', () => {
             saved: 0,
             deleting: 1,
             deleted: 1,
+            trashed: 1,
+            forceDeleted: 0,
+          });
+        });
+
+        it('hit deleting, deleted hooks if force delete a post', async () => {
+          const post = await Post.query().find(1);
+          await post.forceDelete();
+
+          expect(hits).toEqual({
+            creating: 0,
+            created: 0,
+            updating: 0,
+            updated: 0,
+            saving: 0,
+            saved: 0,
+            deleting: 1,
+            deleted: 1,
+            trashed: 0,
+            forceDeleted: 1,
           });
         });
       });
