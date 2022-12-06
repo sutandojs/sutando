@@ -39,7 +39,7 @@ class Builder {
         if ([
           'select', 'where', 'whereColumn', 'from', 'whereNot', 'whereIn', 'orWhere', 'whereNot', 'whereNotIn', 'whereNull', 'whereNotNull', 'whereExists',
           'whereNotExists', 'whereBetween', 'whereNotBetween', 'whereRaw', 'whereJsonObject', 'whereJsonPath', 'whereJsonSupersetOf',
-          'whereJsonSubsetOf', 'leftJoin', 'leftOuterJoin', 'rightJoin', 'rightOuterJoin', 'crossJoin', 'transacting', 'groupBy',
+          'whereJsonSubsetOf', 'leftJoin', 'leftOuterJoin', 'rightJoin', 'rightOuterJoin', 'crossJoin', 'transacting', 'groupBy', 'returning',
           'limit', 'offset', 'orderBy', 'join', 'union', 'insert', 'forUpdate', 'forShare', 'distinct',
         ].includes(prop)) {
           return (...args) => {
@@ -245,7 +245,7 @@ class Builder {
     this.applyScopes();
     return this.query.count({
       aggregate: columns
-    }).then(data => data?.[0]?.aggregate);
+    }).then(data => parseInt(data?.[0]?.aggregate));
   }
 
   getQuery() {
@@ -715,26 +715,25 @@ class Builder {
     return models[0] || null;
   }
 
-  firstOrFail(...columns) {
-    return this.first(...columns).then(data => {
-      if (data === null) {
-        const message = `No query results for model [${this.model.constructor.name}].`;
-        throw new ModelNotFoundError(message);
-      }
+  async firstOrFail(...columns) {
+    const data = await this.first(...columns);
+    
+    if (data === null) {
+      const message = `No query results for model [${this.model.constructor.name}].`;
+      throw new ModelNotFoundError(message);
+    }
 
-      return data;
-    })
+    return data;
   }
 
-  findOrFail(ids, columns = '*') {
-    return this.find(ids, columns).then(data => {
-      if (data === null) {
-        const message = `No query results for model [${this.model.constructor.name}].`;
-        throw new ModelNotFoundError(message);
-      }
+  async findOrFail(ids, columns = '*') {
+    const data = await this.find(ids, columns);
+    if (data === null) {
+      const message = `No query results for model [${this.model.constructor.name}].`;
+      throw new ModelNotFoundError(message);
+    }
 
-      return data;
-    })
+    return data;
   }
 
   async findOrNew(id, columns = ['*']) {
@@ -814,8 +813,9 @@ class Builder {
     return await this.whereIn(this.model.getKeyName(), ids).get(columns);
   }
 
-  pluck(column) {
-    return this.query.pluck(column).then(data => new Collection(data));
+  async pluck(column) {
+    const data = await this.query.pluck(column);
+    return new Collection(data);
   }
 
   async destroy(ids) {
@@ -859,8 +859,8 @@ class Builder {
     return new Collection(models);
   }
 
-  all(columns = '*') {
-    return this.get(columns);
+  async all(columns = '*') {
+    return await this.model.newModelQuery().get(columns);
   }
 
   async paginate(perPage = 15, page = 1) {
@@ -868,7 +868,7 @@ class Builder {
     this.applyScopes();
     const query = this.query.clone();
 
-    const [{ total }]= await query.count(this.primaryKey, { as: 'total' });
+    const [{ total }]= await query.clearOrder().count(this.primaryKey, { as: 'total' });
 
     let results;
     if (total > 0) {
@@ -885,7 +885,7 @@ class Builder {
       results = [];
     }
 
-    return new Paginator(results, total, perPage, page);
+    return new Paginator(results, parseInt(total), perPage, page);
   }
 
   async getModels(columns = ['*']) {

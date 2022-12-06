@@ -20,7 +20,7 @@ Knex.QueryBuilder.extend('forPage', function (page, perPage = 15) {
 Knex.QueryBuilder.extend('paginate', async function (perPage = 15, page = 1) {
   const query = this.clone();
 
-  const [{ total }]= await query.count('*', { as: 'total' });
+  const [{ total }]= await query.clearOrder().count('*', { as: 'total' });
 
   let results;
   if (total > 0) {
@@ -32,7 +32,7 @@ Knex.QueryBuilder.extend('paginate', async function (perPage = 15, page = 1) {
     results = [];
   }
 
-  return new Paginator(results, total, perPage, page);
+  return new Paginator(results, parseInt(total), perPage, page);
 });
 
 class sutando {
