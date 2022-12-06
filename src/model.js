@@ -525,9 +525,9 @@ class Model {
         this.updateTimestamps();
       }
 
-      const data = await query.insert(this.getAttributes());
+      const data = await query.insert([this.getAttributes()], ['id']);
       this.exists = true;
-      this.attributes[this.getKeyName()] = data[0];
+      this.attributes[this.getKeyName()] = data[0]?.id || data[0];
 
       await this.execHooks('created', options);
 
@@ -648,8 +648,8 @@ class Model {
     return this.qualifyColumn(this.getKeyName());
   }
 
-  async push() {
-    const saved = await this.save();
+  async push(options = {}) {
+    const saved = await this.save(options);
     if (! saved) {
       return false;
     }
@@ -659,7 +659,7 @@ class Model {
       models = models instanceof Collection ? models.all() : [models];
 
       for (const model of models) {
-        if (! await model.push()) {
+        if (! await model.push(options)) {
           return false;
         }
       };
