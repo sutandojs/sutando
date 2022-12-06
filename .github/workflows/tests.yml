@@ -1,0 +1,68 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      # https://github.com/actions/example-services/blob/master/.github/workflows/postgres-service.yml
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: sutando
+          POSTGRES_PASSWORD: sutando
+          POSTGRES_DB: sutando_test
+        ports:
+          # will assign a random free host port
+          - 5432/tcp
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      # https://github.community/t5/GitHub-Actions/github-actions-cannot-connect-to-mysql-service/td-p/30611#
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: sutando_test
+        ports:
+          - 3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x, 18.x]
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: pnpm/action-setup@v2
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run mysql tests
+        run: pnpm test:mysql
+        env:
+          MYSQL_PORT: ${{ job.services.mysql.ports['3306'] }}
+          MYSQL_PASSWORD: password
+      
+      - name: Run sqlite tests
+        run: pnpm test:sqlite
+
+      - name: Run postgresql tests
+        run: pnpm test:postgres
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_USER: sutando
+          POSTGRES_PASSWORD: sutando
+          POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}

@@ -1,6 +1,7 @@
 {
   "name": "sutando",
   "version": "0.2.0",
+  "packageManager": "pnpm@7.1.0",
   "description": "A modern Node.js ORM. Makes it enjoyable to interact with your database. Support Mysql, MSSql, MariaDB, Sqlite.",
   "homepage": "https://sutando.org/",
   "main": "./src/index.js",
@@ -10,10 +11,12 @@
   },
 
   "engines": {
-    "node": ">=12"
+    "node": ">=14",
+    "pnpm": ">=4"
   },
   "scripts": {
     "test:mysql": "jest --client=mysql",
+    "test:postgres": "jest --client=postgres",
     "test:sqlite": "jest --client=sqlite"
   },
   "husky": {
