@@ -40,6 +40,7 @@ class Model {
   dateFormat = 'YYYY-MM-DD HH:mm:ss';
   trx = null;
   softDeletes = false;
+  forceDeleting = false;
 
   static CREATED_AT = 'created_at';
   static UPDATED_AT = 'updated_at';
