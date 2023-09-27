@@ -1,6 +1,10 @@
 const Knex = require('knex');
 const Paginator = require('./paginator');
 
+Knex.QueryBuilder.extend('beginTransaction', async function () {
+  return await this.transaction();
+});
+
 Knex.QueryBuilder.extend('get', async function () {
   return await this;
 });
@@ -13,11 +17,11 @@ Knex.QueryBuilder.extend('take', function (...args) {
   return this.limit(...args);
 });
 
-Knex.QueryBuilder.extend('forPage', function (page, perPage = 15) {
+Knex.QueryBuilder.extend('forPage', function (page = 1, perPage = 15) {
   return this.offset((page - 1) * perPage).limit(perPage);
 });
 
-Knex.QueryBuilder.extend('paginate', async function (perPage = 15, page = 1) {
+Knex.QueryBuilder.extend('paginate', async function (page = 1, perPage = 15) {
   const query = this.clone();
 
   const [{ total }]= await query.clearOrder().count('*', { as: 'total' });
@@ -38,7 +42,6 @@ Knex.QueryBuilder.extend('paginate', async function (perPage = 15, page = 1) {
 class sutando {
   static manager = {};
   static connections = {};
-  static transation = false;
 
   static connection(connection = null) {
     return this.getConnection(connection);
@@ -73,7 +76,7 @@ class sutando {
 
   }
 
-  static rollBack(name = null) {
+  static rollback(name = null) {
 
   }
 

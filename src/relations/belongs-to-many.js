@@ -119,10 +119,10 @@ class BelongsToMany extends Relation {
     return new Collection(models);
   }
 
-  async paginate(perPage = 15, page = 1, columns = ['*']) {
+  async paginate(page = 1, perPage = 15, columns = ['*']) {
     this.query.select(this.shouldSelect(columns));
 
-    return tap(this.query.paginate(perPage, page), function (paginator) {
+    return tap(this.query.paginate(page, perPage), function (paginator) {
       this.hydratePivotRelation(paginator.items());
     });
   }

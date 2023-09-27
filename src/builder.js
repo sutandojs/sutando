@@ -863,8 +863,8 @@ class Builder {
     return await this.model.newModelQuery().get(columns);
   }
 
-  async paginate(perPage = 15, page = 1) {
-    perPage = perPage || 15;
+  async paginate(page = 1, perPage) {
+    perPage = perPage || this?.model?.perPage || 15;
     this.applyScopes();
     const query = this.query.clone();
 

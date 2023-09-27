@@ -650,7 +650,7 @@ describe('Integration test', () => {
           });
     
           it('fetches a page of results with specified page size', () => {
-            return User.query().paginate(2)
+            return User.query().paginate(1, 2)
               .then((results) => {
                 expect(results).toBeInstanceOf(Paginator);
                 expect(results.count()).toBe(2);
@@ -660,7 +660,7 @@ describe('Integration test', () => {
           });
     
           it('fetches a page by page number', () => {
-            return User.query().orderBy('id', 'asc').paginate(2, 1)
+            return User.query().orderBy('id', 'asc').paginate(1, 2)
               .then((results) => {
                 expect(results.get(0).id).toBe(1);
                 expect(results.get(1).id).toBe(2);
@@ -674,7 +674,7 @@ describe('Integration test', () => {
                   user_id: 0,
                   name: 'a new post'
                 }).then(() => {
-                  return Post.query(trx).paginate(25);
+                  return Post.query(trx).paginate(1, 25);
                 }).then(posts => {
                   expect(posts.total()).toBe(posts.count());
                 })
