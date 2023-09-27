@@ -1,4 +1,6 @@
+const { compose } = require('../utils');
 const Relation = require('./relation');
+const SupportsDefaultModels = require('./concerns/supports-default-models');
 let model = null;
 
 const getBaseModel = () => {
@@ -8,7 +10,10 @@ const getBaseModel = () => {
   return model;
 }
 
-class BelongsTo extends Relation {
+class BelongsTo extends compose(
+  Relation,
+  SupportsDefaultModels
+) {
   foreignKey;
   ownerKey;
   child;
@@ -27,19 +32,19 @@ class BelongsTo extends Relation {
 
   async getResults() {
     if (this.child[this.foreignKey] === null) {
-      return null;
+      return this.getDefaultFor(this.parent);
     }
 
     const result = await this.query.first();
 
-    return result || null;
+    return result || this.getDefaultFor(this.parent);
   }
 
   match(models, results, relation) {
     const foreign = this.foreignKey;
     const owner = this.ownerKey;
 
-    const dictionary = [];
+    const dictionary = {};
     
     results.map(result => {
       const attribute = result.attributes[owner];
@@ -49,7 +54,7 @@ class BelongsTo extends Relation {
     models.map(model => {
       const attribute = model[foreign];
       if (dictionary[attribute] !== undefined) {
-        model.relations[relation] = dictionary[attribute];
+        model.setRelation(relation, dictionary[attribute]);
       }
     })
 
@@ -58,14 +63,14 @@ class BelongsTo extends Relation {
 
   initRelation(models, relation) {
     models.map(model => {
-      model.relations[relation] = null;
+      model.setRelation(relation, this.getDefaultFor(model));
     });
 
     return models;
   }
 
   addEagerConstraints(models) {
-    const key = `${this.related.table}.${this.ownerKey}`;
+    const key = `${this.related.getTable()}.${this.ownerKey}`;
 
     // const whereIn = this.whereIn(this.related, this.ownerKey);
 
@@ -113,6 +118,10 @@ class BelongsTo extends Relation {
       const table = this.related.getTable();
       this.query.where(table + '.' + this.ownerKey, '=', this.child[this.foreignKey]);
     }
+  }
+
+  newRelatedInstanceFor(parent) {
+    return this.related.newInstance();
   }
 }
 

@@ -1,8 +1,14 @@
 const Relation = require('./relation');
 const { collect } = require('collect.js');
 const HasOneOrMany = require('./has-one-or-many');
+const SupportsDefaultModels = require('./concerns/supports-default-models');
+const { compose } = require('../utils');
 
-class HasOne extends Relation {
+class HasOne extends compose(
+  Relation,
+  HasOneOrMany,
+  SupportsDefaultModels
+) {
   foreignKey;
   localKey;
 
@@ -17,7 +23,7 @@ class HasOne extends Relation {
 
   initRelation(models, relation) {
     models.map(model => {
-      model.relations[relation] = null;
+      model.setRelation(relation, this.getDefaultFor(model));
     })
 
     return models;
@@ -34,12 +40,12 @@ class HasOne extends Relation {
 
   async getResults() {
     if (this.getParentKey() === null) {
-      return null;
+      return this.getDefaultFor(this.parent);
     }
 
     const results = await this.query.first();
 
-    return results || null;
+    return results || this.getDefaultFor(this.parent);
   }
 
   match(models, results, relation) {
@@ -51,8 +57,12 @@ class HasOne extends Relation {
       this.foreignKey, this.getKeys(models, this.localKey)
     );
   }
-}
 
-HasOne.extends(HasOneOrMany);
+  newRelatedInstanceFor(parent) {
+    return this.related.newInstance().setAttribute(
+      this.getForeignKeyName(), parent[this.localKey]
+    );
+  }
+}
 
 module.exports = HasOne;

@@ -2,6 +2,7 @@ class Relation {
   query;
   parent;
   related;
+  eagerKeysWereEmpty = false;
 
   static constraints = true
 
@@ -11,7 +12,7 @@ class Relation {
     this.related = this.query.model;
   }
 
-  static extends(trait) {
+  static extend(trait) {
     for (const methodName in trait) {
       this.prototype[methodName] = trait[methodName];
     }
@@ -37,6 +38,20 @@ class Relation {
         }
 
         if (typeof prop === 'string') {
+          // if ([
+          //   'avg', 'max', 'min', 'sum', 'count',
+          // ].includes(prop)) {
+          //   return (column) => {
+          //     const instance = target.asProxy();
+          //     instance.applyScopes();
+          //     column = !column && prop === 'count' ? '*' : column;
+  
+          //     return instance.query[prop]({
+          //       aggregate: column
+          //     }).then(data => data?.[0]?.aggregate);
+          //   }
+          // }
+
           if (typeof target.query[prop] === 'function') {
             return (...args) => {
               target.query[prop](...args);
@@ -64,16 +79,43 @@ class Relation {
     return this.query;
   }
 
-  get(columns = '*') {
-    return this.query.get(columns);
+  whereInEager(whereIn, key, modelKeys, query = null) {
+    (query || this.query)[whereIn](key, modelKeys);
+
+    if (modelKeys.length === 0) {
+      this.eagerKeysWereEmpty = true;
+    }
   }
 
-  first(columns = '*') {
-    return this.query.first(columns);
+  whereInMethod(model, key) {
+    return 'whereIn';
+    const segments = key.split('.');
+    return model.getKeyName() === segments.pop()
+      && ['int', 'integer'].includes(model.getKeyType())
+        ? 'whereIntegerInRaw'
+        : 'whereIn';
   }
 
-  paginate(...args) {
-    return this.query.paginate(...args);
+  getEager() {
+    return this.eagerKeysWereEmpty
+      ? this.query.getModel().newCollection()
+      : this.get();
+  }
+
+  async get(columns = '*') {
+    return await this.query.get(columns);
+  }
+
+  async first(columns = '*') {
+    return await this.query.first(columns);
+  }
+
+  async paginate(...args) {
+    return await this.query.paginate(...args);
+  }
+
+  async count(...args) {
+    return await this.query.clearSelect().count(...args);
   }
 
   toSql() {

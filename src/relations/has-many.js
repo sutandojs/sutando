@@ -2,8 +2,12 @@ const Relation = require('./relation');
 const { collect } = require('collect.js');
 const Collection = require('../collection');
 const HasOneOrMany = require('./has-one-or-many');
+const { compose } = require('../utils');
 
-class HasMany extends Relation {
+class HasMany extends compose(
+  Relation,
+  HasOneOrMany
+) {
   foreignKey;
   localKey;
 
@@ -18,7 +22,7 @@ class HasMany extends Relation {
 
   initRelation(models, relation) {
     models.map(model => {
-      model.relations[relation] = new Collection([]);
+      model.setRelation(relation, new Collection([]));
     })
 
     return models;
@@ -54,7 +58,5 @@ class HasMany extends Relation {
     );
   }
 }
-
-HasMany.extends(HasOneOrMany);
 
 module.exports = HasMany;
