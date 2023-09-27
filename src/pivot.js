@@ -3,9 +3,9 @@ const Model = require('./model');
 class Pivot extends Model {
   incrementing = false;
   guarded = [];
-  pivotParent;
-  foreignKey;
-  relatedKey;
+  pivotParent = null;
+  foreignKey = null;
+  relatedKey = null;
 
   setPivotKeys(foreignKey, relatedKey) {
     this.foreignKey = foreignKey;
