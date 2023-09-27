@@ -7,12 +7,12 @@ const now = (format = 'YYYY-MM-DD HH:mm:ss') => dayjs().format(format);
 
 const getRelationName = (relationMethod) => {
   // 'relation' length 8
-  return relationMethod.substring(8).toLowerCase();
+  return _.snakeCase(relationMethod.substring(8));
 }
 
 const getScopeName = (scopeMethod) => {
   // 'scope' length 5
-  return scopeMethod.substring(5).toLowerCase();
+  return _.snakeCase(scopeMethod.substring(5));
 }
 
 const getRelationMethod = (relation) => {
