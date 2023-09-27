@@ -44,6 +44,12 @@ const tap = (instance, callback) => {
   return result instanceof Promise ? result.then(() => instance) : instance;
 }
 
+const compose = (Base, ...mixins) => {
+  return mixins.reduce((Class, mixinFunc) => {
+    return mixinFunc(Class);
+  }, Base);
+}
+
 module.exports = {
   now,
   getRelationName,
@@ -54,5 +60,6 @@ module.exports = {
   getGetterMethod,
   getSetterMethod,
   getAttrName,
+  compose,
   tap,
 };
