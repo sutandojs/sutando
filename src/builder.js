@@ -56,9 +56,7 @@ class Builder {
             instance.applyScopes();
             column = !column && prop === 'count' ? '*' : column;
 
-            return instance.query[prop]({
-              aggregate: column
-            }).then(data => data?.[0]?.aggregate);
+            return instance.query[prop](column);
           }
         }
 
@@ -239,13 +237,6 @@ class Builder {
     return this.model.newInstance(attributes).setConnection(
       this.model.getConnectionName()
     );
-  }
-
-  count(columns = '*') {
-    this.applyScopes();
-    return this.query.count({
-      aggregate: columns
-    }).then(data => parseInt(data?.[0]?.aggregate));
   }
 
   getQuery() {
@@ -868,7 +859,7 @@ class Builder {
     this.applyScopes();
     const query = this.query.clone();
 
-    const [{ total }]= await query.clearOrder().count(this.primaryKey, { as: 'total' });
+    const total = await query.clearOrder().count(this.model.getKeyName());
 
     let results;
     if (total > 0) {
