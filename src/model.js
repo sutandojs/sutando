@@ -2,23 +2,26 @@ const _ = require('lodash');
 const collect = require('collect.js');
 const pluralize = require('pluralize');
 const Builder = require('./builder');
-const Hooks = require('./hooks');
 const Collection = require('./collection');
-const sutando = require('./sutando');
-const {
-  now,
-  getRelationName,
-  getScopeName,
-  getRelationMethod,
-  getScopeMethod,
-  getAttrMethod,
-  getGetterMethod,
-  getSetterMethod,
-  getAttrName,
-} = require('./utils');
-const { ModelNotFoundError, RelationNotFoundError } = require('./errors');
 
-class Model {
+const sutando = require('./sutando');
+const HasAttributes = require('./concerns/has-attributes');
+const HasRelations = require('./concerns/has-relations');
+const HasTimestamps = require('./concerns/has-timestamps');
+const HidesAttributes = require('./concerns/hides-attributes');
+const HasHooks = require('./concerns/has-hooks');
+const { compose, tap } = require('./utils');
+
+const BaseModel = compose(
+  class {},
+  HasAttributes,
+  HidesAttributes,
+  HasRelations,
+  HasTimestamps,
+  HasHooks,
+);
+
+class Model extends BaseModel {
   primaryKey = 'id'; // protected
   builder = null; // protected
   table = null; // protected
@@ -26,28 +29,16 @@ class Model {
   keyType = 'int'; // protected
   incrementing = true; // protected
   perPage = 15; // protected
-  attributes = {}; // protected
   exists = false;
   eagerLoad = {};
-  relations = {};
-  changes = [];
-  appends = [];
-  hidden = [];
-  visible = [];
   with = [];
   withCount = []; // protected
-  timestamps = true;
-  dateFormat = 'YYYY-MM-DD HH:mm:ss';
   trx = null;
   softDeletes = false;
   forceDeleting = false;
 
-  static CREATED_AT = 'created_at';
-  static UPDATED_AT = 'updated_at';
-  static DELETED_AT = 'deleted_at';
   static globalScopes = [];
   static booted = false;
-  static hooks = null;
 
   static query(trx = null) {
     const instance = new this;
@@ -67,71 +58,12 @@ class Model {
     return new this(attributes);
   }
 
-  static addHook(hook, callback) {
-    if (this.hooks instanceof Hooks === false) {
-      this.hooks = new Hooks;
-    }
-
-    this.hooks.add(hook, callback);
-  }
-
-  static creating(callback) {
-    this.addHook('creating', callback);
-  }
-
-  static created(callback) {
-    this.addHook('created', callback);
-  }
-
-  static updating(callback) {
-    this.addHook('updating', callback);
-  }
-
-  static updated(callback) {
-    this.addHook('updated', callback);
-  }
-
-  static saving(callback) {
-    this.addHook('saving', callback);
-  }
-
-  static saved(callback) {
-    this.addHook('saved', callback);
-  }
-
-  static deleting(callback) {
-    this.addHook('deleting', callback);
-  }
-
-  static deleted(callback) {
-    this.addHook('deleted', callback);
-  }
-
-  static restoring(callback) {
-    this.addHook('restoring', callback);
-  }
-
-  static restored(callback) {
-    this.addHook('restored', callback);
-  }
-
-  static trashed(callback) {
-    this.addHook('trashed', callback);
-  }
-
-  static forceDeleted(callback) {
-    this.addHook('forceDeleted', callback);
-  }
-
-  async execHooks(hook, options) {
-    if (this.constructor.hooks instanceof Hooks === false) {
-      return;
-    }
-
-    return await this.constructor.hooks.exec(hook, [this, options]);
+  static extend(plugin, options) {
+    plugin(this, options);
   }
 
   constructor(attributes = {}) {
+    super();
     if (!this.table) {
       this.table = pluralize(_.snakeCase(this.constructor.name));
     }
@@ -169,50 +101,28 @@ class Model {
   asProxy () {
     const handler = {
       get: function (target, prop) {
-        if (typeof target[prop] !== 'undefined') {
+        if (target[prop] !== undefined) {
           return target[prop]
         }
 
         // get model column
         if (typeof prop === 'string') {
           // get custom attribute
-          const attrMethod = getGetterMethod(prop);
-          if (typeof target[attrMethod] === 'function') {
-            return target.asProxy()[attrMethod](target.attributes[prop]);
-          }
-
-          if (typeof target.attributes[prop] !== 'undefined') {
-            return target.attributes[prop];
-          }
-
-          if (typeof target.relations[prop] !== 'undefined') {
-            return target.relations[prop];
-          }
+          return target.getAttribute(prop);
         }
       },
 
       set: function (target, prop, value) {
         if (target.hasOwnProperty(prop)) {
           target[prop] = value;
-          return true;
+          return target;
         }
 
         if (typeof prop === 'string') {
-          const attrMethod = getSetterMethod(prop);
-          if (typeof target[attrMethod] === 'function') {
-            target.asProxy()[attrMethod](value);
-            return true;
-          }
+          return target.setAttribute(prop, value);
         }
 
-        const oldValue = target.attributes[prop];
-        target.attributes[prop] = value;
-        
-        if (oldValue !== value) {
-          target.changes.push(prop);
-        }
-
-        return true;
+        return target;
       }
     }
 
@@ -248,10 +158,6 @@ class Model {
     return this.keyType;
   }
 
-  getDateFormat() {
-    return this.dateFormat;
-  }
-
   newQuery(trx = null) {
     const connection = trx || this.getConnection();
     const builder = new Builder(connection);
@@ -273,49 +179,12 @@ class Model {
     return this;
   }
 
-  setAttributes(attributes) {
-    this.attributes = attributes;
-  }
-
-  getAttributes() {
-    return this.attributes;
-  }
-
-  setAppends(appends) {
-    this.appends = appends;
-    return this;
-  }
-
-  append(...keys) {
-    const appends = _.flatMapDeep(keys);
-    this.appends = [...this.appends, ...appends];
-    return this;
-  }
-
-  setRelation(relation, value) {
-    this.relations[relation] = value;
-    return this;
-  }
-
-  unsetRelation(relation) {
-    _.unset(this.relations, relation);
-    return this;
-  }
-
   static softDeletingScope(query) {
     query.whereNull(
       query.model.qualifyColumn(
         query.model.getDeletedAtColumn()
       )
     );
-  }
-
-  makeVisible(...keys) {
-    const visible = _.flatMapDeep(keys);
-    this.visible = [...this.visible, ...visible];
-
-    this.hidden = _.difference(this.hidden, visible);
-    return this;
   }
 
   async load(...relations) {
@@ -326,116 +195,68 @@ class Model {
     return this;
   }
 
-  makeHidden(...keys) {
-    const hidden = _.flatMapDeep(keys);
-    this.hidden = [...this.hidden, ...hidden];
-
-    this.visible = _.difference(this.visible, hidden);
+  async loadAggregate(relations, column, callback = null) {
+    await new Collection([this]).loadAggregate(relations, column, callback);
     return this;
   }
 
-  usesTimestamps() {
-    return this.timestamps;
+  async loadCount(...relations) {
+    relations = _.flatMapDeep(relations);
+    return await this.loadAggregate(relations, '*', 'count');
   }
 
-  getCreatedAtColumn() {
-    return this.constructor.CREATED_AT;
+  async loadMax(relations, column) {
+    return await this.loadAggregate(relations, column, 'max');
   }
 
-  getUpdatedAtColumn() {
-    return this.constructor.UPDATED_AT;
+  async loadMin(relations, column) {
+    return await this.loadAggregate(relations, column, 'min');
   }
 
-  getDeletedAtColumn() {
-    return this.constructor.DELETED_AT;
+  async loadSum(relations, column) {
+    return await this.loadAggregate(relations, column, 'sum');
   }
 
-  setCreatedAt(value) {
-    this.attributes[this.getCreatedAtColumn()] = value;
-    this.changes.push(this.getCreatedAtColumn());
-    return this;
+  async increment(column, amount = 1, extra = {}, options = {}) {
+    return await this.incrementOrDecrement(column, amount, extra, 'increment', options);
   }
 
-  setUpdatedAt(value) {
-    this.attributes[this.getUpdatedAtColumn()] = value;
-    this.changes.push(this.getUpdatedAtColumn());
-    return this;
+  async decrement(column, amount = 1, extra = {}, options = {}) {
+    return await this.incrementOrDecrement(column, amount, extra, 'decrement', options);
+  }
+
+  async incrementOrDecrement(column, amount, extra, method, options) {
+    const query = this.newModelQuery(options.client);
+
+    if (! this.exists) {
+      console.log('exists=>', this.exists)
+      return await query[method](column, amount, extra);
+    }
+
+    this.attributes[column] = this[column] + (method === 'increment' ? amount : amount * -1);
+
+    for (let key in extra) {
+      this.attributes[key] = extra[key];
+    }
+
+    await this.execHooks('updating', options);
+    console.log(this.getKeyName, this.getKey())
+
+    return await tap(await query.where(this.getKeyName(), this.getKey())[method](column, amount, extra), async () => {
+      await this.execHooks('updated', options);
+    });
+  }
+
+  serializeDate(date) {
+    return date.toJSON();
   }
 
   useSoftDeletes() {
     return this.softDeletes;
   }
 
-  updateTimestamps() {
-    const time = new Date;
-    time.setMilliseconds(0);
-
-    const updatedAtColumn = this.getUpdatedAtColumn();
-
-    if (updatedAtColumn && !this.isDirty(updatedAtColumn)) {
-      this.setUpdatedAt(time);
-    }
-
-    const createdAtColumn = this.getCreatedAtColumn();
-
-    if (!this.exists && createdAtColumn && !this.isDirty(createdAtColumn)) {
-      this.setCreatedAt(time);
-    }
-
-    return this;
-  }
-
   toData() {
     return _.merge(this.attributesToData(), this.relationsToData());
-  }
-
-  attributesToData() {
-    const attributes = { ...this.attributes };
-
-    for (const key in attributes) {
-      if (this.hidden.includes(key)) {
-        _.unset(attributes, key);
-      }
-
-      if (this.visible.length > 0 && this.visible.includes(key) === false) {
-        _.unset(attributes, key);
-      }
-    }
-
-    for (const key of this.appends) {
-      attributes[key] = this.mutateAttribute(key, null);
-    }
-
-    return attributes;
-  }
-
-  mutateAttribute(key, value) {
-    return this[getAttrMethod(key)](value)
-  }
-
-  mutateAttributeForArray(key, value) {
-
-  }
-
-  relationsToData() {
-    const data = {};
-    for (const key in this.relations) {
-      if (this.hidden.includes(key)) {
-        continue;
-      }
-
-      if (this.visible.length > 0 && this.visible.includes(key) === false) {
-        continue;
-      }
-
-      data[key] = this.relations[key] instanceof Array
-        ? this.relations[key].map(item => item.toData())
-        : this.relations[key] === null
-          ? null
-          : this.relations[key].toData();
-    }
-
-    return data;
   }
 
   toJSON() {
@@ -459,30 +280,6 @@ class Model {
     }
 
     return this;
-  }
-
-  isDirty(...attributes) {
-    if (attributes.length === 0) {
-      return this.changes.length > 0;
-    }
-
-    return _.intersection(
-      _.flatMapDeep(attributes),
-      this.changes
-    ).length > 0;
-  }
-
-  getDirty() {
-    const dirty = {};
-
-    for (const key in this.attributes) {
-      const value = this.attributes[key];
-      if (this.changes.includes(key)) {
-        dirty[key] = value;
-      }
-    }
-
-    return dirty;
   }
 
   transacting(trx) {
@@ -541,6 +338,18 @@ class Model {
     }
 
     return saved;
+  }
+
+  async update(attributes = {}, options = {}) {
+    if (! this.exists) {
+      return false;
+    }
+
+    for (let key in attributes) {
+      this[key] = attributes[key];
+    }
+
+    return await this.save(options);
   }
 
   async delete(options = {}) {
@@ -679,82 +488,8 @@ class Model {
   isNot(model) {
     return !this.is(model);
   }
-
-  related(relation) {
-    if (typeof this[getRelationMethod(relation)] !== 'function') {
-      const message = `Model [${this.constructor.name}]'s relation [${relation}] doesn't exist.`;
-      throw new RelationNotFoundError(message);
-    }
-    
-    return this[getRelationMethod(relation)]();
-  }
-
-  async getRelated(relation) {
-    return await this.related(relation).getResults();
-  }
-
-  guessBelongsToRelation() {
-    let e = new Error();
-    let frame = e.stack.split("\n")[2];
-    // let lineNumber = frame.split(":").reverse()[1];
-    let functionName = frame.split(" ")[5];
-    return getRelationName(functionName);
-  }
-
-  hasOne(model, foreignKey = null, localKey = null) {
-    const query = model.query();
-    const instance = new model;
-    foreignKey = foreignKey || this.constructor.name.toLowerCase() + '_id';
-    localKey = localKey || this.getKeyName();
-
-    return (new HasOne(query, this, instance.getTable() + '.' + foreignKey, localKey));
-  }
-
-  hasMany(model, foreignKey = null, localKey = null) {
-    const query = model.query();
-    const instance = new model;
-    foreignKey = foreignKey || this.constructor.name.toLowerCase() + '_id';
-    localKey = localKey || this.getKeyName();
-
-    return (new HasMany(query, this, instance.getTable() + '.' + foreignKey, localKey));
-  }
-
-  belongsTo(model, foreignKey = null, ownerKey = null, relation = null) {
-    const query = model.query();
-    const instance = new model;
-    foreignKey = foreignKey || instance.constructor.name.toLowerCase() + '_id';
-    ownerKey = ownerKey ||  instance.getKeyName();
-
-    relation = relation || this.guessBelongsToRelation();
-
-    return (new BelongsTo(query, this, foreignKey, ownerKey, relation));
-  }
-
-  belongsToMany(model, table = null, foreignPivotKey = null, relatedPivotKey = null, parentKey = null, relatedKey = null) {
-    const query = model.query();
-    const instance = new model;
-    table = table || [this.constructor.name, instance.constructor.name].sort().join('_').toLocaleLowerCase();
-    foreignPivotKey = foreignPivotKey || this.constructor.name.toLowerCase() + '_id';
-    relatedPivotKey = relatedPivotKey || instance.constructor.name.toLowerCase() + '_id';
-    parentKey = parentKey || this.getKeyName();
-    relatedKey = relatedKey || instance.getKeyName();
-
-    return (new BelongsToMany(
-      query,
-      this,
-      table,
-      foreignPivotKey,
-      relatedPivotKey,
-      parentKey,
-      relatedKey
-    ));
-  }
 }
 
 module.exports = Model;
 
 const Pivot = require('./pivot');
-const HasOne = require('./relations/has-one');
-const HasMany = require('./relations/has-many');
-const BelongsTo = require('./relations/belongs-to');
-const BelongsToMany = require('./relations/belongs-to-many');
