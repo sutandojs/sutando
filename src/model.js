@@ -10,6 +10,7 @@ const HasRelations = require('./concerns/has-relations');
 const HasTimestamps = require('./concerns/has-timestamps');
 const HidesAttributes = require('./concerns/hides-attributes');
 const HasHooks = require('./concerns/has-hooks');
+const UniqueIds = require('./concerns/unique-ids');
 const { compose, tap } = require('./utils');
 
 const BaseModel = compose(
@@ -19,6 +20,7 @@ const BaseModel = compose(
   HasRelations,
   HasTimestamps,
   HasHooks,
+  UniqueIds,
 );
 
 class Model extends BaseModel {
@@ -317,6 +319,10 @@ class Model extends BaseModel {
         saved = true;
       }
     } else {
+      if (this.usesUniqueIds()) {
+        this.setUniqueIds();
+      }
+
       await this.execHooks('creating', options);
 
       if (this.usesTimestamps()) {
