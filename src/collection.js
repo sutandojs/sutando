@@ -73,6 +73,7 @@ class Collection extends BaseCollection {
       return super.contains(key, operator, value);
     }
 
+    const Model = require('./model');
     if (key instanceof Model) {
       return super.contains(model => {
         return model.is(key);
@@ -131,6 +132,7 @@ class Collection extends BaseCollection {
   }
 
   find(key, defaultValue = null) {
+    const Model = require('./model');
     if (key instanceof Model) {
       key = key.getKey();
     }
