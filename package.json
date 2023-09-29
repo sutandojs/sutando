@@ -33,7 +33,7 @@
   "dependencies": {
     "collect.js": "^4.34.3",
     "dayjs": "^1.11.5",
-    "knex": "^2.2.0",
+    "knex": "^2.5.1",
     "lodash": "^4.17.21",
     "pluralize": "^8.0.0"
   },
