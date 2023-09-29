@@ -11,18 +11,23 @@ class Hooks {
     restoring: [],
     restored: [],
     trashed: [],
+    forceDeleting: [],
     forceDeleted: [],
   };
 
   add(hook, callback) {
-    if (Object.keys(this.hooks).includes(hook) === false) {
-      throw new Error(`Unsupported hook [${hook}].`);
+    if (typeof this.hooks[hook] === 'undefined') {
+      this.hooks[hook] = [];
     }
 
     this.hooks[hook].push(callback);
   }
 
   async exec(hook, data) {
+    if (typeof this.hooks[hook] === 'undefined') {
+      return true;
+    }
+
     for (const callback of this.hooks[hook]) {
       await callback(...data);
     }
