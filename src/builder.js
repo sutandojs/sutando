@@ -486,7 +486,7 @@ class Builder {
 
     const parses = this.parseWithRelations(relations)
 
-    for (const name in parses) {
+    for (let name in parses) {
       const constraints = parses[name];
       const segments = name.split(' ');
 

@@ -332,7 +332,7 @@ const InteractsWithPivotTable = (Relation) => {
     }
     
     baseAttachRecord(id, timed) {
-      const record = {};
+      let record = {};
       record[this.relatedPivotKey] = id;
     
       record[this.foreignPivotKey] = this.parent[this.parentKey];
