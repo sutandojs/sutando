@@ -37,10 +37,17 @@ class Builder {
         }
 
         if ([
-          'select', 'where', 'whereColumn', 'from', 'whereNot', 'whereIn', 'orWhere', 'whereNot', 'whereNotIn', 'whereNull', 'whereNotNull', 'whereExists',
-          'whereNotExists', 'whereBetween', 'whereNotBetween', 'whereRaw', 'whereJsonObject', 'whereJsonPath', 'whereJsonSupersetOf',
-          'whereJsonSubsetOf', 'leftJoin', 'leftOuterJoin', 'rightJoin', 'rightOuterJoin', 'crossJoin', 'transacting', 'groupBy', 'returning',
-          'limit', 'offset', 'orderBy', 'join', 'union', 'insert', 'forUpdate', 'forShare', 'distinct',
+          'select', 'from', 'where', 'orWhere', 'whereColumn', 'whereRaw',
+          'whereNot', 'orWhereNot', 'whereIn', 'orWhereIn', 'whereNotIn', 'orWhereNotIn', 'whereNull', 'orWhereNull', 'whereNotNull', 'orWhereNotNull', 'whereExists', 'orWhereExists',
+          'whereNotExists', 'orWhereNotExists', 'whereBetween', 'orWhereBetween', 'whereNotBetween', 'orWhereNotBetween',
+          'whereLike', 'orWhereLike', 'whereILike', 'orWhereILike', 
+          'whereJsonObject', 'whereJsonPath', 'whereJsonSupersetOf', 'whereJsonSubsetOf', 
+          'join', 'joinRaw', 'leftJoin', 'leftOuterJoin', 'rightJoin', 'rightOuterJoin', 'crossJoin', 
+          'transacting', 'groupBy', 'groupByRaw', 'returning',
+          'having', 'havingRaw', 'havingBetween', 
+          'limit', 'offset', 'orderBy', 'orderByRaw', 'inRandomOrder',
+          'union', 'insert', 'forUpdate', 'forShare', 'distinct',
+          'clearOrder', 'clear', 'clearSelect', 'clearWhere', 'clearHaving', 'clearGroup',
         ].includes(prop)) {
           return (...args) => {
             target.query[prop](...args);
