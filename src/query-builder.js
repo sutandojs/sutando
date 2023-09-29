@@ -20,8 +20,21 @@ Knex.QueryBuilder.extend('beginTransaction', async function () {
   return await this.transaction();
 });
 
+Knex.QueryBuilder.extend('find', async function (id, columns = ['*']) {
+  return await this.where('id', id).first(...columns);
+});
+
 Knex.QueryBuilder.extend('get', async function () {
   return await this;
+});
+
+Knex.QueryBuilder.extend('exists', async function () {
+  return await this.first() !== null;
+});
+
+Knex.QueryBuilder.extend('inRandomOrder', function () {
+  this.orderByRaw('RANDOM()');
+  return this;
 });
 
 Knex.QueryBuilder.extend('skip', function (...args) {
@@ -32,6 +45,34 @@ Knex.QueryBuilder.extend('take', function (...args) {
   return this.limit(...args);
 });
 
+Knex.QueryBuilder.extend('chunk', async function (count, callback) {
+  if (this._statements.filter(item => item.grouping === 'order').length === 0) {
+    throw new Error('You must specify an orderBy clause when using this function.');
+  }
+
+  let page = 1;
+  let countResults;
+
+  do {
+    const builder = this.clone();
+    const results = await builder.forPage(page, count).get();
+
+    countResults = results.count();
+
+    if (countResults == 0) {
+      break;
+    }
+
+    if (callback(results, page) === false) {
+      return false;
+    }
+
+    page++;
+  } while (countResults === count);
+
+  return true;
+});
+
 Knex.QueryBuilder.extend('forPage', function (page = 1, perPage = 15) {
   return this.offset((page - 1) * perPage).limit(perPage);
 });
@@ -39,7 +80,7 @@ Knex.QueryBuilder.extend('forPage', function (page = 1, perPage = 15) {
 Knex.QueryBuilder.extend('paginate', async function (page = 1, perPage = 15) {
   const query = this.clone();
 
-  const total = await query.clearOrder().count();
+  const total = await query.clearOrder().count('*');
 
   let results;
   if (total > 0) {
