@@ -10,6 +10,7 @@ const HasRelations = require('./concerns/has-relations');
 const HasTimestamps = require('./concerns/has-timestamps');
 const HidesAttributes = require('./concerns/hides-attributes');
 const HasHooks = require('./concerns/has-hooks');
+const HasGlobalScopes = require('./concerns/has-global-scopes');
 const UniqueIds = require('./concerns/unique-ids');
 const { compose, tap } = require('./utils');
 
@@ -20,6 +21,7 @@ const BaseModel = compose(
   HasRelations,
   HasTimestamps,
   HasHooks,
+  HasGlobalScopes,
   UniqueIds,
 );
 
