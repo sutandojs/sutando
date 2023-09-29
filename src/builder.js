@@ -21,6 +21,7 @@ class Builder {
   connection;
   model;
   actions;
+  localMacros = {};
   eagerLoad = {};
   _scopes = {};
 
@@ -68,6 +69,13 @@ class Builder {
         }
 
         if (typeof prop === 'string') {
+          if (target.hasMacro(prop)) {
+            const instance = target.asProxy();
+            return (...args) => {
+              return instance.localMacros[prop](instance, ...args);
+            };
+          }
+          
           if (prop.startsWith('where')) {
             const column = _.snakeCase(prop.substring(5));
             return (...args) => {
@@ -126,6 +134,8 @@ class Builder {
     builder.connection = this.connection;
     builder.setModel(this.model);
     builder._scopes = { ...this._scopes };
+    builder.localMacros = { ...this.localMacros };
+
     return builder;
   }
 
@@ -297,6 +307,19 @@ class Builder {
   withoutGlobalScope(identifier) {
     _.unset(this._scopes, identifier);
     return this;
+  }
+
+  macro(name, callback) {
+    this.localMacros[name] = callback;
+    return;
+  }
+
+  hasMacro(name) {
+    return name in this.localMacros;
+  }
+
+  getMacro(name) {
+    return this.localMacros[name];
   }
 
   with(...args) {
