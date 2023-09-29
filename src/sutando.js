@@ -20,7 +20,19 @@ class sutando {
   }
 
   static addConnection(config, name = 'default') {
-    this.connections[name] = config;
+    this.connections[name] = {
+      ...config,
+      connection: {
+        ...config.connection,
+        dateStrings: true,
+        typeCast: function (field, next) {
+          if (field.type === 'JSON') {
+            return field.string();
+          }
+          return next();
+        }
+      }
+    };
   }
 
   static beginTransaction(name = null) {
