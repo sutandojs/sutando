@@ -32,9 +32,9 @@ class Collection extends BaseCollection {
 
     this.each((model) => {
       const extraAttributes = _.pick(models.get(model.getKey()).getAttributes(), attributes);
-      for (let key in extraAttributes) {
-        model.attributes[key] = extraAttributes[key];
-      }
+
+      model.fill(extraAttributes)
+        .syncOriginalAttributes(attributes);
     });
 
     return this;

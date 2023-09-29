@@ -28,8 +28,10 @@ class Pivot extends Model {
     const instance = new this;
 
     instance.timestamps = instance.hasTimestampAttributes(attributes);
-    instance.table = table;
-    instance.attributes = attributes;
+    instance.setConnection(parent.connection)
+      .setTable(table)
+      .fill(attributes)
+      .syncOriginal();
     instance.pivotParent = parent;
     instance.exists = exists;
 
