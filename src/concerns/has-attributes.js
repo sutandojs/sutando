@@ -1,6 +1,7 @@
 const _ = require('lodash');
 const dayjs = require('dayjs');
 const {
+  getAttrMethod,
   getGetterMethod,
   getSetterMethod,
 } = require('../utils');
@@ -22,6 +23,14 @@ const HasAttributes = (Model) => {
       const appends = _.flatMapDeep(keys);
       this.appends = [...this.appends, ...appends];
       return this;
+    }
+
+    normalizeCastClassResponse(key, value) {
+      return value?.constructor?.name === 'Object'
+        ? value
+        : {
+          [key]: value
+        }
     }
 
     syncOriginal() {
@@ -105,9 +114,26 @@ const HasAttributes = (Model) => {
     }
   
     setAttribute(key, value) {
-      const attrMethod = getSetterMethod(key);
+      const setterMethod = getSetterMethod(key);
+      if (typeof this[setterMethod] === 'function') {
+        this[setterMethod](value);
+        return this;
+      }
+
+      const attrMethod = getAttrMethod(key);
       if (typeof this[attrMethod] === 'function') {
-        this[attrMethod](value);
+        const attribute = this[attrMethod]();
+        const callback = attribute.set || ((value) => {
+          this.attributes[key] = value;
+        });
+
+        this.attributes = {
+          ...this.attributes,
+          ...this.normalizeCastClassResponse(
+            key, callback(value, this.attributes)
+          )
+        };
+
         return this;
       }
   
@@ -131,9 +157,15 @@ const HasAttributes = (Model) => {
         return;
       }
   
-      const attrMethod = getGetterMethod(key);
+      const getterMethod = getGetterMethod(key);
+      if (typeof this[getterMethod] === 'function') {
+        return this[getterMethod](this.attributes[key], this.attributes);
+      }
+
+      const attrMethod = getAttrMethod(key);
       if (typeof this[attrMethod] === 'function') {
-        return this[attrMethod](this.attributes[key], this.attributes);
+        const caster = this[attrMethod]();
+        return caster.get(this.attributes[key], this.attributes);
       }
   
       if (this.attributes[key] !== undefined) {
@@ -189,18 +221,9 @@ const HasAttributes = (Model) => {
         case 'datetime':
         case 'custom_datetime':
           return this.asDateTime(value);
-        // case 'immutable_date':
-        //   return this.asDate(value).toImmutable();
-        // case 'immutable_custom_datetime':
-        // case 'immutable_datetime':
-        //   return this.asDateTime(value).toImmutable();
         case 'timestamp':
           return this.asTimestamp(value);
       }
-  
-      // if (this.isEnumCastable(key)) {
-      //   return this.getEnumCastableAttributeValue(key, value);
-      // }
   
       if (typeof castType === 'function' && (new castType) instanceof CastsAttributes) {
         return castType.get(this, key, value, this.attributes);
@@ -238,7 +261,14 @@ const HasAttributes = (Model) => {
     }
   
     mutateAttribute(key, value) {
-      return this[getGetterMethod(key)](value)
+      if (typeof this[getGetterMethod(key)] === 'function') {
+        return this[getGetterMethod(key)](value);
+      } else if (typeof this[getAttrMethod(key)] === 'function') {
+        const caster = this[getAttrMethod(key)]();
+        return caster.get(key, this.attributes);
+      }
+
+      return value;
     }
   
     mutateAttributeForArray(key, value) {

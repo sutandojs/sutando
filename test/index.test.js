@@ -1,7 +1,6 @@
 const _ = require('lodash');
-const { sutando, Model, Collection, Builder, Paginator } = require('../src');
+const { sutando, Model, Collection, Builder, Paginator, Attribute, ModelNotFoundError } = require('../src');
 const config = require(process.env.SUTANDO_CONFIG || './config');
-const { ModelNotFoundError } = require('../src/errors');
 const dayjs = require('dayjs');
 
 Promise.delay = function (duration) {
@@ -67,7 +66,17 @@ describe('Model', () => {
   });
 
   describe('#toData & #toJson', () => {
-    class User extends Model {}
+    class User extends Model {
+      attributeFullName() {
+        return Attribute.make({
+          get: (value, attributes) => `${attributes.firstName} ${attributes.lastName}`,
+          set: (value, attributes) => ({
+            firstName: value.split(' ')[0],
+            lastName: value.split(' ')[1]
+          })
+        })
+      }
+    }
     class Post extends Model {}
 
     let testModel;
@@ -130,6 +139,16 @@ describe('Model', () => {
 
         expect(data).toEqual({firstName: 'Joe'});
       });
+    });
+
+    it('model getter settings', () => {
+      expect(testModel.full_name).toBe('Joe Shmoe');
+    });
+
+    it('model setter settings', () => {
+      testModel.full_name = 'Bill Gates';
+      expect(testModel.firstName).toBe('Bill');
+      expect(testModel.lastName).toBe('Gates');
     });
   })
 
@@ -221,6 +240,12 @@ describe('Integration test', () => {
 
       class User extends Base {
         hidden = ['password', 'remember_token'];
+        
+        attributeFullName() {
+          return Attribute.make({
+            get: (value, attributes) => `${attributes.firstName} ${attributes.name}`
+          })
+        }
 
         relationPosts() {
           return this.hasMany(Post);

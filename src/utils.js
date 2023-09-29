@@ -24,7 +24,7 @@ const getScopeMethod = (scope) => {
 }
 
 const getAttrMethod = (attr) => {
-  return _.camelCase(`get_${attr}_attribute`);
+  return _.camelCase(`attribute_${attr}`);
 }
 
 const getGetterMethod = (attr) => {
