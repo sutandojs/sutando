@@ -2,17 +2,13 @@ const Paginator = require('./paginator');
 const _ = require('lodash');
 const Collection = require('./collection');
 const { Collection: BaseCollection } = require('collect.js')
-const Relation = require('./relations/relation')
+const Relation = require('./relations/relation');
 const BelongsToMany = require('./relations/belongs-to-many');
+const Scope = require('./scope');
 const {
-  now,
   tap,
-  getRelationName,
-  getScopeName,
   getRelationMethod,
-  getScopeMethod,
-  getAttrMethod,
-  getAttrName,
+  getScopeMethod
 } = require('./utils');
 const { ModelNotFoundError, RelationNotFoundError } = require('./errors');
 
@@ -75,7 +71,7 @@ class Builder {
               return instance.localMacros[prop](instance, ...args);
             };
           }
-          
+
           if (prop.startsWith('where')) {
             const column = _.snakeCase(prop.substring(5));
             return (...args) => {
@@ -130,12 +126,14 @@ class Builder {
   }
 
   clone() {
-    const builder = new this.constructor(this.query.clone());
+    const query = this.query.clone();
+
+    const builder = new this.constructor(query);
     builder.connection = this.connection;
     builder.setModel(this.model);
     builder._scopes = { ...this._scopes };
     builder.localMacros = { ...this.localMacros };
-
+    
     return builder;
   }
 
@@ -179,7 +177,7 @@ class Builder {
     const column = this.model.getUpdatedAtColumn();
 
     values = _.merge(
-      { [column]: new Date },
+      { [column]: this.model.freshTimestampString() },
       values
     );
 
@@ -187,57 +185,15 @@ class Builder {
   }
 
   delete() {
-    if (this.model.useSoftDeletes() === true) {
-      return this.softDelete();
+    if (this.onDeleteCallback) {
+      return this.onDeleteCallback(this);
     }
 
-    return this.forceDelete();
+    return this.query.delete();
   }
 
-  softDelete() {
-    const column = this.getDeletedAtColumn(this);
-    return this.update({
-      [column]: new Date,
-    });
-  }
-
-  restore() {
-    return this.update({
-      [this.getModel().getDeletedAtColumn()]: null
-    });
-  }
-
-  withTrashed() {
-    return this.withoutGlobalScope('softDeletingScope');
-  }
-
-  withoutTrashed() {
-    const model = this.getModel();
-
-    this.withoutGlobalScope('softDeletingScope').whereNull(
-      model.qualifyColumn(model.getDeletedAtColumn())
-    );
-
-    return this;
-  }
-
-  onlyTrashed() {
-    const model = this.getModel();
-
-    this.withoutGlobalScope('softDeletingScope').whereNotNull(
-      model.qualifyColumn(model.getDeletedAtColumn())
-    );
-
-    return this;
-  }
-
-  getDeletedAtColumn(builder) {
-    const model = builder.getModel();
-    if (builder.query._statements.filter(item => item.constructor.name == 'JoinClause').length > 0) {
-      return model.qualifyColumn(model.getDeletedAtColumn());
-    }
-
-    return model.qualifyColumn(model.getDeletedAtColumn());
+  onDelete(callback) {
+    this.onDeleteCallback = callback;
   }
 
   forceDelete() {
@@ -266,12 +222,17 @@ class Builder {
 
   setModel(model) {
     this.model = model;
-    this.query = this.query.table(this.model.table);
+    if (typeof this.query?.client?.table == 'function') {
+      this.query = this.query.client.table(this.model.getTable());
+    } else {
+      this.query = this.query?.table(this.model.getTable());
+    }
+    
     return this;
   }
 
-  setTable(talbe) {
-    this.query = this.query.table(talbe);
+  setTable(table) {
+    this.query = this.query.table(table);
     return this
   }
 
@@ -280,12 +241,19 @@ class Builder {
       return this;
     }
 
-    for (const identifier in this._scopes) {
-      const scope = this._scopes[identifier];
-      scope(this);
+    const builder = this;
+
+    for (const identifier in builder._scopes) {
+      const scope = builder._scopes[identifier];
+
+      if (scope instanceof Scope) {
+        scope.apply(builder, builder.getModel());
+      } else {
+        scope(builder);
+      }
     }
 
-    return this;
+    return builder;
   }
 
   scopes(scopes) {
@@ -301,11 +269,21 @@ class Builder {
 
   withGlobalScope(identifier, scope) {
     this._scopes[identifier] = scope;
+
+    if (typeof scope.extend === 'function') {
+      scope.extend(this);
+    }
+
     return this;
   }
 
-  withoutGlobalScope(identifier) {
-    _.unset(this._scopes, identifier);
+  withoutGlobalScope(scope) {
+    if (typeof scope !== 'string') {
+      scope = scope.constructor.name;
+    }
+    
+    _.unset(this._scopes, scope);
+
     return this;
   }
 
@@ -356,7 +334,7 @@ class Builder {
     
     return this;
   }
-  
+
   has(relation, operator = '>=', count = 1, boolean = 'and', callback = null) {
     if (_.isString(relation)) {
       if (relation.includes('.')) {
@@ -366,25 +344,21 @@ class Builder {
       relation = this.getRelationWithoutConstraints(getRelationMethod(relation));
     }
 
-    const db = this.model.getConnection();
-
     const method = this.canUseExistsForExistenceCheck(operator, count)
       ? 'getRelationExistenceQuery'
       : 'getRelationExistenceCountQuery';
 
     const hasQuery = relation[method](
-      relation.getRelated().newModelQuery(), this, db.raw('count(*)')
+      relation.getRelated().newModelQuery(), this
     );
 
     if (callback) {
       callback(hasQuery);
     }
 
-    if (boolean == 'and') {
-      return this.where(db.raw('(' + hasQuery.toSql().sql + ')'), operator, count);
-    } else {
-      return this.orWhere(db.raw('(' + hasQuery.toSql().sql + ')'), operator, count);
-    }
+    return this.addHasWhere(
+      hasQuery, relation, operator, count, boolean
+    );
   }
 
   orHas(relation, operator = '>=', count = 1) {
@@ -401,6 +375,30 @@ class Builder {
 
   whereHas(relation, callback = null, operator = '>=', count = 1) {
     return this.has(relation, operator, count, 'and', callback);
+  }
+
+  orWhereHas(relation, callback = null, operator = '>=', count = 1) {
+    return this.has(relation, operator, count, 'or', callback);
+  }
+
+  whereRelation(relation, column, operator = null, value = null) {
+    return this.whereHas(relation, (query) => {
+      if (typeof column === 'function') {
+        column(query);
+      } else {
+        query.where(column, operator, value);
+      }
+    });
+  }
+
+  orWhereRelation(relation, column, operator = null, value = null) {
+    return this.orWhereHas(relation, function (query) {
+      if (typeof column === 'function') {
+        column(query);
+      } else {
+        query.where(column, operator, value);
+      }
+    });
   }
 
   hasNested(relations, operator = '>=', count = 1, boolean = 'and', callback = null) {
@@ -432,6 +430,28 @@ class Builder {
     return this.canUseExistsForExistenceCheck(operator, count)
       ? this.addWhereExistsQuery(hasQuery.getQuery(), boolean, operator === '<' && count === 1)
       : this.addWhereCountQuery(hasQuery.getQuery(), operator, count, boolean);
+  }
+
+  addWhereExistsQuery(query, boolean = 'and', not = false) {
+    const type = not ? 'NotExists' : 'Exists';
+
+    const method = boolean === 'and' ? 'where' + type : 'orWhere' + type;
+
+    this[method](query);
+
+    return this;
+  }
+
+  addWhereCountQuery(query, operator = '>=', count = 1, boolean = 'and') {
+    // this.query.addBinding(query.getBindings(), 'where');
+    const db = this.model.getConnection();
+
+    return this.where(
+      db.raw('(' + query.toSQL().sql +')'),
+      operator,
+      typeof count ==='number' ? db.raw(count) : count,
+      boolean
+    );
   }
   
   withAggregate(relations, column, action = null) {
@@ -700,7 +720,7 @@ class Builder {
         }
         
         return query instanceof BelongsToMany
-          ? query.related.table + '.' + column
+          ? query.related.getTable() + '.' + column
           : column;
       }));
     }];
@@ -740,8 +760,7 @@ class Builder {
     const data = await this.first(...columns);
     
     if (data === null) {
-      const message = `No query results for model [${this.model.constructor.name}].`;
-      throw new ModelNotFoundError(message);
+      throw (new ModelNotFoundError).setModel(this.model.constructor.name);
     }
 
     return data;
@@ -749,9 +768,17 @@ class Builder {
 
   async findOrFail(ids, columns = '*') {
     const data = await this.find(ids, columns);
+
+    if (_.isArray(ids)) {
+      if (data.count() !== ids.length) {
+        throw (new ModelNotFoundError).setModel(this.model.constructor.name, _.difference(ids, data.modelKeys()));
+      }
+
+      return data;
+    }
+
     if (data === null) {
-      const message = `No query results for model [${this.model.constructor.name}].`;
-      throw new ModelNotFoundError(message);
+      throw (new ModelNotFoundError).setModel(this.model.constructor.name, ids);
     }
 
     return data;
@@ -884,12 +911,13 @@ class Builder {
     return await this.model.newModelQuery().get(columns);
   }
 
-  async paginate(page = 1, perPage) {
+  async paginate(page, perPage) {
+    page = page || 1;
     perPage = perPage || this?.model?.perPage || 15;
     this.applyScopes();
     const query = this.query.clone();
 
-    const total = await query.clearOrder().count(this.model.getKeyName());
+    const total = await query.clearOrder().clearSelect().count(this.primaryKey);
 
     let results;
     if (total > 0) {
@@ -909,10 +937,17 @@ class Builder {
     return new Paginator(results, parseInt(total), perPage, page);
   }
 
-  async getModels(columns = ['*']) {
+  async getModels(...columns) {
+    columns = _.flatMap(columns);
+    if (columns.length > 0) {
+      if (this.query._statements.filter(item => item.grouping == 'columns').length > 0 && columns[0] !== '*') {
+        this.query.select(...columns);
+      }
+    }
+    
     return this.hydrate(
-      await this.query
-    );
+      await this.query.get()
+    ).all();
   }
 
   getRelation(name) {
@@ -976,7 +1011,7 @@ class Builder {
   }
 
   hydrate(items) {
-    return items.map(item => {
+    return new Collection(items.map(item => {
       if (!this.model) {
         return item;
       }
@@ -985,7 +1020,7 @@ class Builder {
       model.syncOriginal();
 
       return model;
-    });
+    }));
   }
 }
 

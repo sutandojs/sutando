@@ -1,7 +1,10 @@
 const _ = require('lodash');
-const { sutando, Model, Collection, Builder, Paginator, Attribute, ModelNotFoundError } = require('../src');
+const { sutando, Model, Collection, Builder, Paginator, compose, SoftDeletes, Attribute } = require('../src');
 const config = require(process.env.SUTANDO_CONFIG || './config');
+const { ModelNotFoundError } = require('../src/errors');
 const dayjs = require('dayjs');
+const crypto = require('crypto');
+const HasUniqueIds = require('../src/concerns/has-unique-ids');
 
 Promise.delay = function (duration) {
   return new Promise((resolve, reject) => {
@@ -28,8 +31,19 @@ describe('Sutando', () => {
 });
 
 describe('Model', () => {
+  const SomePlugin = (Model) => {
+    return class extends Model {
+      pluginAttribtue = 'plugin';
+      pluginMethod() {
+        return this.pluginAttribtue;
+      }
+    }
+  }
 
-  class User extends Model {
+  class User extends compose(
+    Model,
+    SomePlugin,
+  ) {
     relationPost() {
       return this.hasMany(Post);
     }
@@ -64,6 +78,19 @@ describe('Model', () => {
     expect(user.getTable()).toBe('users');
     expect(media.getTable()).toBe('media');
   });
+
+  describe('#compose', () => {
+    it('should return a Model instance', () => {
+      const user = new User;
+      expect(user).toBeInstanceOf(Model);
+    });
+
+    it('has mixin\'s attributes and methods', () => {
+      const user = new User;
+      expect(user.pluginAttribtue).toBe('plugin');
+      expect(user.pluginMethod()).toBe('plugin');
+    })
+  })
 
   describe('#toData & #toJson', () => {
     class User extends Model {
@@ -103,6 +130,7 @@ describe('Model', () => {
     it('serializes correctly', () => {
       testModel.makeVisible('firstName');
       expect(testModel.toJson()).toBe('{"firstName":"Joe"}');
+      expect(testModel.toString()).toBe('{"firstName":"Joe"}');
     });
 
     describe('#visible & #hidden', () => {
@@ -159,7 +187,8 @@ describe('Model', () => {
     });
 
     it("returns false if the attribute isn't set on a new model instance", () => {
-      const model = new Model({test: 'something'});
+      const model = new Model({test_test: 'something'});
+      // expect(model.getDirty()).toEqual({ a: 1})
       expect(model.isDirty('id')).toBeFalsy();
       expect(model.isDirty()).toBeTruthy();
     });
@@ -230,6 +259,8 @@ describe('Integration test', () => {
   databases.map(config => {
     describe('Client: ' + config.client, () => {
       sutando.addConnection(config, config.client);
+      const connection = sutando.connection(config.client);
+
       class Base extends Model {
         connection = config.client;
       }
@@ -250,9 +281,11 @@ describe('Integration test', () => {
         relationPosts() {
           return this.hasMany(Post);
         }
+      }
 
-        relationLikedPosts() {
-          return this.belongsToMany(Post, 'post_like');
+      class UuidUser extends compose(Base, HasUniqueIds) {
+        newUniqueId() {
+          return crypto.randomUUID();
         }
       }
 
@@ -265,16 +298,24 @@ describe('Integration test', () => {
           return this.belongsTo(User);
         }
 
+        relationDefaultAuthor() {
+          return this.belongsTo(User).withDefault({
+            name: 'Default Author'
+          });
+        }
+
+        relationDefaultPostAuthor() {
+          return this.belongsTo(User).withDefault((user, post) => {
+            user.name = post.name + ' - Default Author';
+          });
+        }
+
         relationThumbnail() {
           return this.belongsTo(Media, 'thumbnail_id');
         }
 
         relationMedia() {
           return this.belongsToMany(Media);
-        }
-
-        relationLikers() {
-          return this.belongsToMany(User, 'post_like');
         }
 
         relationTags() {
@@ -296,7 +337,7 @@ describe('Integration test', () => {
 
       class Media extends Base {}
 
-      const connection = sutando.connection(config.client);
+      class SoftDeletePost extends compose(Base, SoftDeletes) {}
 
       beforeAll(() => {
         return Promise.all(['users', 'tags', 'posts', 'post_tag', 'administrators', 'comments', 'media'].map(table => {
@@ -307,6 +348,11 @@ describe('Integration test', () => {
               table.increments('id');
               table.string('name');
               table.string('first_name');
+              table.timestamps();
+            })
+            .createTable('uuid_users', (table) => {
+              table.string('id').primary();
+              table.string('name');
               table.timestamps();
             })
             .createTable('media', (table) => {
@@ -349,8 +395,15 @@ describe('Integration test', () => {
               table.text('comment');
               table.timestamps();
             })
+            .createTable('soft_delete_posts', function(table) {
+              table.increments('id');
+              table.string('name');
+              table.text('content');
+              table.datetime('deleted_at').defaultTo(null);
+              table.timestamps();
+            })
         }).then(() => {
-          const date = new Date();
+          const date = dayjs().format('YYYY-MM-DD HH:mm:ss');
           return Promise.all([
             connection.table('users').insert([
               {
@@ -366,6 +419,7 @@ describe('Integration test', () => {
                 updated_at: date,
               }
             ]),
+            // connection.table('uuid_users').insert([]),
             connection.table('administrators').insert([
               {
                 username: 'test1',
@@ -408,7 +462,7 @@ describe('Integration test', () => {
             ]),
             connection.table('comments').insert([
               {
-                post_id: 1,
+                post_id: 3,
                 name: '(blank)',
                 email: 'test@example.com',
                 comment: 'this is neat.',
@@ -463,7 +517,7 @@ describe('Integration test', () => {
                 updated_at: date
               },
               {
-                user_id: 3,
+                user_id: 30,
                 name: 'This is a new Title 4!',
                 content: 'Lorem ipsum Anim sed eu sint aute.',
                 created_at: date,
@@ -477,6 +531,40 @@ describe('Integration test', () => {
                 created_at: date,
                 updated_at: date
               }
+            ]),
+            connection.table('soft_delete_posts').insert([
+              {
+                name: 'This is a new Title!',
+                content:
+                  'Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.',
+                created_at: date,
+                updated_at: date,
+                deleted_at: null,
+              },
+              {
+                name: 'This is a new Title 2!',
+                content:
+                  'Lorem ipsum Veniam ex amet occaecat dolore in pariatur minim est exercitation deserunt Excepteur enim officia occaecat in exercitation aute et ad esse ex in in dolore amet consequat quis sed mollit et id incididunt sint dolore velit officia dolor dolore laboris dolor Duis ea ex quis deserunt anim nisi qui culpa laboris nostrud Duis anim deserunt esse laboris nulla qui in dolor voluptate aute reprehenderit amet ut et non voluptate elit irure mollit dolor consectetur nisi adipisicing commodo et mollit dolore incididunt cupidatat nulla ut irure deserunt non officia laboris fugiat ut pariatur ut non aliqua eiusmod dolor et nostrud minim elit occaecat commodo consectetur cillum elit laboris mollit dolore amet id qui eiusmod nulla elit eiusmod est ad aliqua aute enim ut aliquip ex in Ut nisi sint exercitation est mollit veniam cupidatat adipisicing occaecat dolor irure in aute aliqua ullamco.',
+                created_at: date,
+                updated_at: date,
+                deleted_at: date
+              },
+              {
+                name: 'This is a new Title 3!',
+                content:
+                  'Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.',
+                created_at: date,
+                updated_at: date,
+                deleted_at: null,
+              },
+              {
+                name: 'This is a new Title 4!',
+                content:
+                  'Lorem ipsum Veniam ex amet occaecat dolore in pariatur minim est exercitation deserunt Excepteur enim officia occaecat in exercitation aute et ad esse ex in in dolore amet consequat quis sed mollit et id incididunt sint dolore velit officia dolor dolore laboris dolor Duis ea ex quis deserunt anim nisi qui culpa laboris nostrud Duis anim deserunt esse laboris nulla qui in dolor voluptate aute reprehenderit amet ut et non voluptate elit irure mollit dolor consectetur nisi adipisicing commodo et mollit dolore incididunt cupidatat nulla ut irure deserunt non officia laboris fugiat ut pariatur ut non aliqua eiusmod dolor et nostrud minim elit occaecat commodo consectetur cillum elit laboris mollit dolore amet id qui eiusmod nulla elit eiusmod est ad aliqua aute enim ut aliquip ex in Ut nisi sint exercitation est mollit veniam cupidatat adipisicing occaecat dolor irure in aute aliqua ullamco.',
+                created_at: date,
+                updated_at: date,
+                deleted_at: date
+              },
             ]),
           ])
         });
@@ -575,36 +663,36 @@ describe('Integration test', () => {
             });
           });
     
-          it('locks the table when called with the forUpdate option during a transaction', () => {
+          it('locks the table when called with the forUpdate option during a transaction', async () => {
             let userId;
 
             const user = new User;
             user.first_name = 'foo';
-            return user.save().then(() => {
-              userId = user.id;
+            await user.save();
 
-              return Promise.all([
-                connection.transaction(trx => {
-                  return User.query(trx).forUpdate().find(user.id)
-                  .then(() => {
-                    return Promise.delay(100);
-                  })
-                  .then(() => {
-                    return User.query(trx).find(user.id);
-                  })
-                  .then(user => {
-                    expect(user.first_name).toBe('foo');
-                  });
-                }),
-                Promise.delay(25).then(() => {
-                  return User.query().where('id', user.id).update({
-                    first_name: 'changed',
-                  });
+            userId = user.id;
+
+            await Promise.all([
+              connection.transaction(trx => {
+                return User.query(trx).forUpdate().find(user.id)
+                .then(() => {
+                  return Promise.delay(100);
                 })
-              ]);
-            }).then(() => {
-              return User.query().where('id', userId).delete();
-            });
+                .then(() => {
+                  return User.query(trx).find(user.id);
+                })
+                .then(user => {
+                  expect(user.first_name).toBe('foo');
+                });
+              }),
+              Promise.delay(25).then(() => {
+                return User.query().where('id', user.id).update({
+                  first_name: 'changed',
+                });
+              })
+            ]);
+
+            await User.query().where('id', userId).delete();
           });
     
           it('locks the table when called with the forShare option during a transaction', () => {
@@ -638,22 +726,43 @@ describe('Integration test', () => {
         });
 
         describe('#get()', () => {
-          it('should merge models with duplicate ids by default', () => {
-            return User.query().get().then((users) => {
-              expect(users).toBeInstanceOf(Collection);
-              expect(users.count()).toBe(2);
-              expect(users.pluck('name').all()).toEqual(['Shuri', 'Alice']);
-            });
+          it('should merge models with duplicate ids by default', async () => {
+            const users = await User.query().get();
+
+            expect(users).toBeInstanceOf(Collection);
+            expect(users.count()).toBe(2);
+            expect(users.pluck('name').all()).toEqual(['Shuri', 'Alice']);
           });
     
-          it('returns an empty collection if there are no results', () => {
-            return User.query()
+          it('returns an empty collection if there are no results', async () => {
+            const users = await User.query()
               .where('name', 'hal9000')
-              .get()
-              .then((users) => {
-                expect(users).toBeInstanceOf(Collection);
-                expect(users.count()).toBe(0);
+              .get();
+
+            expect(users).toBeInstanceOf(Collection);
+            expect(users.count()).toBe(0);
+          });
+        });
+
+        describe('#chunk()', () => {
+          it('fetches a single page of results with defaults', async () => {
+            const names = [];
+
+            await Tag.query().chunk(2, (tags) => {
+              tags.map(tag => {
+                names.push(tag.name);
               });
+            });
+
+            expect(names).toEqual(['cool', 'boring', 'exciting', 'amazing']);
+
+            await Tag.query().orderBy('id', 'desc').chunk(2, (tags) => {
+              tags.map(tag => {
+                names.push(tag.name);
+              });
+            });
+
+            expect(names).toEqual(['cool', 'boring', 'exciting', 'amazing', 'amazing', 'exciting', 'boring', 'cool']);
           });
         });
 
@@ -693,16 +802,19 @@ describe('Integration test', () => {
           });
     
           describe('inside a transaction', () => {
-            it('returns consistent results for rowCount and number of models', () => {
-              return connection.transaction(trx => {
-                return Post.query(trx).insert({
+            it('returns consistent results for rowCount and number of models', async () => {
+              // await Post.query().insert({
+              //   user_id: 0,
+              //   name: 'a new post'
+              // });
+              return connection.transaction(async trx => {
+                await Post.query(trx).insert({
                   user_id: 0,
                   name: 'a new post'
-                }).then(() => {
-                  return Post.query(trx).paginate(1, 25);
-                }).then(posts => {
-                  expect(posts.total()).toBe(posts.count());
-                })
+                });
+                
+                const posts = await Post.query(trx).paginate(1, 25);
+                expect(posts.total()).toBe(posts.count());
               });
             });
           });
@@ -781,6 +893,22 @@ describe('Integration test', () => {
               expect(results[0].reverse()).toEqual(results[1]);
             });
           });
+
+          it('randomly sorts results', async () => {
+            let post1 = await Post.query().oldest().first();
+            let post2 = await Post.query().oldest().first();
+            let post3 = await Post.query().oldest().first();
+            let post4 = await Post.query().oldest().first();
+
+            expect(post1.is(post2) && post2.is(post3) && post3.is(post4)).toBe(true);
+
+            post1 = await Post.query().inRandomOrder().first();
+            post2 = await Post.query().inRandomOrder().first();
+            post3 = await Post.query().inRandomOrder().first();
+            post4 = await Post.query().inRandomOrder().first();
+
+            expect(post1.is(post2) && post2.is(post3) && post3.is(post4)).toBe(false);
+          })
         });
 
         describe('#save()', () => {
@@ -797,6 +925,21 @@ describe('Integration test', () => {
             expect(posts.last().name).toBe('Fourth post');
             expect(posts.count()).toBe(7);
           });
+
+          it('saves a new object with unique id', async () => {
+            const pattern = /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/;
+
+            const user = new UuidUser;
+            user.name = 'Joey';
+            await user.save();
+
+            expect(pattern.test(user.id)).toBe(true);
+
+            const uuser = await UuidUser.query().first();
+            expect(uuser.name).toBe('Joey');
+            expect(uuser.id).toBe(user.id);
+          });
+    
     
           it('saves all attributes that are currently set on the model plus the ones passed as argument', async () => {
             const post = new Post({
@@ -935,13 +1078,13 @@ describe('Integration test', () => {
 
               return admin.save()
                 .then(() => {
-                  oldUpdatedAt = admin.updated_at;
+                  oldUpdatedAt = dayjs(admin.updated_at).format('YYYY-MM-DD HH:mm:ss');
                   admin.updated_at = newUpdatedAt;
                   return admin.save();
                 })
                 .then(() => {
-                  expect(admin.updated_at).toEqual(newUpdatedAt);
-                  expect(admin.updated_at).not.toEqual(oldUpdatedAt);
+                  expect(dayjs(admin.updated_at).format('YYYY-MM-DD HH:mm:ss')).toEqual(newUpdatedAt);
+                  expect(dayjs(admin.updated_at).format('YYYY-MM-DD HH:mm:ss')).not.toEqual(oldUpdatedAt);
                 });
             });
     
@@ -952,13 +1095,14 @@ describe('Integration test', () => {
 
               return admin.save()
                 .then(() => {
-                  oldCreatedAt = admin.created_at;
+                  oldCreatedAt = dayjs(admin.created_at).format('YYYY-MM-DD HH:mm:ss');
                   admin.created_at = newCreatedAt;
                   return admin.save();
                 })
                 .then(() => {
-                  expect(admin.created_at).toEqual(newCreatedAt);
-                  expect(admin.created_at).not.toEqual(oldCreatedAt);
+                  const create_at = dayjs(admin.created_at).format('YYYY-MM-DD HH:mm:ss');
+                  expect(create_at).toEqual(newCreatedAt);
+                  expect(create_at).not.toEqual(oldCreatedAt);
                 });
             });
           });
@@ -983,7 +1127,7 @@ describe('Integration test', () => {
               model.created_at = date;
               return model.save()
                 .then(() => {
-                  expect(model.created_at).toBe(date);
+                  expect(dayjs(model.created_at).format('YYYY-MM-DD HH:mm:ss')).toBe(date);
                 });
             });
     
@@ -992,7 +1136,7 @@ describe('Integration test', () => {
               model.updated_at = date;
               return model.save()
                 .then(() => {
-                  expect(model.updated_at).toBe(date);
+                  expect(dayjs(model.updated_at).format('YYYY-MM-DD HH:mm:ss')).toBe(date);
                 });
             });
           });
@@ -1053,6 +1197,63 @@ describe('Integration test', () => {
             }
           });
         });
+
+        describe('#soft-delete', () => {
+          // new SoftDeletePost;
+          it('#count', async () => {
+            const count = await SoftDeletePost.query().count()
+            expect(count).toBe(2);
+            
+            const withTrashedCount = await SoftDeletePost.query().withTrashed().count();
+            expect(withTrashedCount).toBe(4);
+
+            const onlyTrashedCount = await SoftDeletePost.query().onlyTrashed().count();
+            expect(onlyTrashedCount).toBe(2);
+          });
+
+          it('#trashed()', async () => {
+            const posts = await SoftDeletePost.query().withTrashed().get();
+            expect(posts.count()).toBe(4);
+            expect(posts.find(1).trashed()).toBe(false);
+            expect(posts.find(2).trashed()).toBe(true);
+          });
+
+          it('#delete()', async () => {
+            await SoftDeletePost.query().where('id', 1).delete();
+            const count = await SoftDeletePost.query().count();
+            expect(count).toBe(1);
+
+            const post = await SoftDeletePost.query().first();
+            expect(post.id).toBe(3);
+            await post.delete();
+            expect(post.trashed()).toBe(true);
+          });
+
+          it('#restore', async () => {
+            await SoftDeletePost.query().withTrashed().whereIn('id', [1, 2]).restore();
+            let count = await SoftDeletePost.query().count();
+            expect(count).toBe(2);
+
+            const post = await SoftDeletePost.query().withTrashed().where('id', 3).first();
+            await post.restore();
+            expect(post.trashed()).toBe(false);
+
+            count = await SoftDeletePost.query().count();
+            expect(count).toBe(3);
+          });
+
+          it('#forceDelete()', async () => {
+            await SoftDeletePost.query().where('id', 1).forceDelete();
+            let count = await SoftDeletePost.query().count();
+            expect(count).toBe(2);
+
+            const post = await SoftDeletePost.query().withTrashed().first();
+            await post.forceDelete();
+
+            count = await SoftDeletePost.query().withTrashed().count();
+            expect(count).toBe(2);
+          });
+        })
       });
 
       describe('Relation', () => {
@@ -1067,10 +1268,39 @@ describe('Integration test', () => {
           it('handles hasMany (posts)', async () => {
             const user = await User.query().find(1);
             const posts = await user.related('posts').get();
+
             expect(posts).toBeInstanceOf(Collection);
+
             posts.map(post => {
               expect(user.id).toBe(post.user_id);
             });
+          });
+
+          it('handles has/whereHas query', async () => {
+            let count = await User.query().has('posts').count();
+            expect(count).toBe(2);
+
+            count = await User.query().has('posts', '>', 1).count();
+            expect(count).toBe(1);
+
+            count = await User.query().whereHas('posts', (q) => {
+              return q.where('name', '=', 'This is a new Title 3!');
+            }).count();
+            expect(count).toBe(1);
+
+            // count = await User.query().whereExists((q) => {
+            //   q.select('*').from('posts').whereColumn('posts.user_id', 'users.id')
+            // }).count();
+
+            // expect(count).toBe(2);
+          });
+
+          it('handles whereRelation', async () => {
+            let count = await User.query().whereRelation('posts', 'name', '=', 'This is a new Title 3!').count();
+            expect(count).toBe(1);
+
+            count = await User.query().whereRelation('posts', 'name', '=', 'This is a new Title 6!').count();
+            expect(count).toBe(0);
           });
         });
 
@@ -1125,6 +1355,40 @@ describe('Integration test', () => {
               });
           });
 
+          it('eager loads "belongsTo" relationship with default values', async () => {
+            let post = await Post.query().with('default_author').find(4);
+            let xpost = post.toData();
+            _.unset(xpost, 'created_at');
+            _.unset(xpost, 'updated_at');
+
+            expect(post.default_author).toBeInstanceOf(User);
+            expect(xpost).toEqual({
+              id: 4,
+              user_id: 30,
+              name: 'This is a new Title 4!',
+              content: 'Lorem ipsum Anim sed eu sint aute.',
+              default_author: {
+                name: 'Default Author'
+              }
+            });
+
+            post = await Post.query().with('default_post_author').find(4);
+            xpost = post.toData();
+            _.unset(xpost, 'created_at');
+            _.unset(xpost, 'updated_at');
+
+            expect(post.default_post_author).toBeInstanceOf(User);
+            expect(xpost).toEqual({
+              id: 4,
+              user_id: 30,
+              name: 'This is a new Title 4!',
+              content: 'Lorem ipsum Anim sed eu sint aute.',
+              default_post_author: {
+                name: 'This is a new Title 4! - Default Author'
+              }
+            });
+          });
+
           it('eager loads "belongsToMany" models correctly', () => {
             return Post.query().with('tags').find(1)
               .then(post => {
@@ -1141,14 +1405,6 @@ describe('Integration test', () => {
                 });
               });
           });
-  
-          // it('attaches an empty related model or collection if the `EagerRelation` comes back blank', function() {
-          //   return new Site({id: 3})
-          //     .fetch({
-          //       withRelated: ['meta', 'blogs', 'authors.posts']
-          //     })
-          //     .then(checkTest(this));
-          // });
   
           it('maintains eager loaded column specifications', () => {
             return Post.query().with({
@@ -1275,44 +1531,46 @@ describe('Integration test', () => {
           }
         });
 
-        class Post extends Base {
-          softDeletes = true;
+        class HookPost extends compose(Base, SoftDeletes) {
+          table = 'posts';
+          static boot() {
+            super.boot();
+            this.creating(() => {
+              hits.creating++;
+            });
+            this.created(() => {
+              hits.created++;
+            });
+            this.updating(() => {
+              hits.updating++;
+            });
+            this.updated(() => {
+              hits.updated++;
+            });
+          }
         }
 
-        Post.creating(() => {
-          hits.creating++;
-        });
-        Post.created(() => {
-          hits.created++;
-        });
-        Post.updating(() => {
-          hits.updating++;
-        });
-        Post.updated(() => {
-          hits.updated++;
-        });
-        Post.saving(() => {
+        HookPost.saving(() => {
           hits.saving++;
         });
-        Post.saved(() => {
+        HookPost.saved(() => {
           hits.saved++;
         });
-        Post.deleting(() => {
+        HookPost.deleting(() => {
           hits.deleting++;
         });
-        Post.deleted(() => {
+        HookPost.deleted(() => {
           hits.deleted++;
         });
-        Post.trashed(() => {
+        HookPost.trashed(() => {
           hits.trashed++;
         });
-        Post.forceDeleted(() => {
+        HookPost.forceDeleted(() => {
           hits.forceDeleted++;
         });
 
-
         it('hit creating, created, saving, saved hooks if use save() create post', async () => {
-          const post = new Post;
+          const post = new HookPost;
           post.user_id = 0;
           post.name = 'Test create hook';
           await post.save();
@@ -1333,7 +1591,7 @@ describe('Integration test', () => {
         
 
         it('hit creating, created, saving, saved hooks if use create() create post', async () => {
-          await Post.query().create({
+          await HookPost.query().create({
             user_id: 0,
             name: 'A hook post',
           });
@@ -1353,7 +1611,7 @@ describe('Integration test', () => {
         });
 
         it('hit updating, updated, saving, saved hooks if use save() update post', async () => {
-          const post = await Post.query().find(2);
+          const post = await HookPost.query().find(2);
           post.name = 'Test update hook',
           await post.save();
 
@@ -1372,7 +1630,7 @@ describe('Integration test', () => {
         });
 
         it('hit deleting, deleted, trashed hooks if soft delete a post', async () => {
-          const post = await Post.query().find(2);
+          const post = await HookPost.query().find(2);
           await post.delete();
 
           expect(hits).toEqual({
@@ -1390,7 +1648,7 @@ describe('Integration test', () => {
         });
 
         it('hit deleting, deleted hooks if force delete a post', async () => {
-          const post = await Post.query().find(1);
+          const post = await HookPost.query().find(1);
           await post.forceDelete();
 
           expect(hits).toEqual({

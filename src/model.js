@@ -3,7 +3,6 @@ const collect = require('collect.js');
 const pluralize = require('pluralize');
 const Builder = require('./builder');
 const Collection = require('./collection');
-
 const sutando = require('./sutando');
 const HasAttributes = require('./concerns/has-attributes');
 const HasRelations = require('./concerns/has-relations');
@@ -12,6 +11,8 @@ const HidesAttributes = require('./concerns/hides-attributes');
 const HasHooks = require('./concerns/has-hooks');
 const HasGlobalScopes = require('./concerns/has-global-scopes');
 const UniqueIds = require('./concerns/unique-ids');
+const dayjs = require('dayjs');
+
 const { compose, tap } = require('./utils');
 
 const BaseModel = compose(
@@ -38,24 +39,21 @@ class Model extends BaseModel {
   with = [];
   withCount = []; // protected
   trx = null;
-  softDeletes = false;
-  forceDeleting = false;
-
-  static globalScopes = [];
-  static booted = false;
+  
+  static globalScopes = {};
+  static pluginInitializers = {};
+  static _booted = {};
 
   static query(trx = null) {
-    const instance = new this;
-    // instance.instance = instance;
-    // log('model-query', trx)
-    return instance.newQuery(trx).setModel(instance);
+    const instance = new this();
+    return instance.newQuery(trx);
   }
 
   static on(connection = null) {
     const instance = new this;
 
     instance.setConnection(connection);
-    return instance.newQuery().setModel(instance);
+    return instance.newQuery();
   }
 
   static init(attributes = {}) {
@@ -68,36 +66,68 @@ class Model extends BaseModel {
 
   constructor(attributes = {}) {
     super();
-    if (!this.table) {
-      this.table = pluralize(_.snakeCase(this.constructor.name));
-    }
 
+    this.bootIfNotBooted();
+    this.initializePlugins();
     this.syncOriginal();
-    this.attributes = { ...this.attributes, ...attributes };
-
-    this.constructor.bootIfNotBooted();
+    
+    this.fill(attributes);
 
     return this.asProxy();
   }
 
-  static bootIfNotBooted() {
-    if (this.booted === false) {
-      this.boot();
-      this.booted = true;
+  bootIfNotBooted() {
+    if (this.constructor._booted[this.constructor.name] === undefined) {
+      this.constructor._booted[this.constructor.name] = true;
+
+      this.constructor.booting();
+      this.initialize();
+      this.constructor.boot();
+      this.constructor.booted();
     }
   }
 
+  static booting() {
+    
+  }
+
   static boot() {
-    //
+    
+  }
+
+  static booted() {
+    
+  }
+
+  initialize() {
+    
+  }
+
+  initializePlugins() {
+    if (typeof this.constructor.pluginInitializers[this.constructor.name] === 'undefined') {
+      return;
+    }
+
+    for (const method of this.constructor.pluginInitializers[this.constructor.name]) {
+      this[method]();
+    }
+  }
+
+  addPluginInitializer(method) {
+    if (!this.constructor.pluginInitializers[this.constructor.name]) {
+      this.constructor.pluginInitializers[this.constructor.name] = [];
+    }
+
+    this.constructor.pluginInitializers[this.constructor.name].push(method);
   }
 
   newInstance(attributes = {}, exists = false) {
     const model = new this.constructor;
 
     model.exists = exists;
-    model.connection = this.getConnectionName();
-    model.table = this.getTable();
-    model.attributes = { ...this.attributes, ...attributes };
+    model.setConnection(this.getConnectionName());
+    model.setTable(this.getTable());
+    model.fill(attributes);
 
     return model;
   }
@@ -117,7 +147,7 @@ class Model extends BaseModel {
       },
 
       set: function (target, prop, value) {
-        if (target.hasOwnProperty(prop)) {
+        if (target[prop] !== undefined && typeof target !== 'function') {
           target[prop] = value;
           return target;
         }
@@ -134,11 +164,15 @@ class Model extends BaseModel {
   }
 
   getKey() {
-    return this.attributes[this.getKeyName()];
+    return this.getAttribute(this.getKeyName());
   }
 
   getKeyName() {
     return this.primaryKey;
+  }
+
+  getForeignKey() {
+    return _.snakeCase(this.constructor.name) + '_' + this.getKeyName();
   }
 
   getConnectionName() {
@@ -146,7 +180,7 @@ class Model extends BaseModel {
   }
 
   getTable() {
-    return this.table;
+    return this.table || pluralize(_.snakeCase(this.constructor.name));
   }
 
   getConnection() {
@@ -163,19 +197,29 @@ class Model extends BaseModel {
   }
 
   newQuery(trx = null) {
-    const connection = trx || this.getConnection();
-    const builder = new Builder(connection);
-    builder.with(this.with); // .withCount(this.withCount);
-    
-    if (this.useSoftDeletes() === true) {
-      builder.withGlobalScope('softDeletingScope', this.constructor.softDeletingScope);
-    }
+    return this.addGlobalScopes(this.newQueryWithoutScopes(trx));
+  }
 
-    return builder;
+  newQueryWithoutScopes(trx = null) {
+    return this.newModelQuery(trx)
+      .with(this.with)
+      .withCount(this.withCount);
   }
 
   newModelQuery(trx = null) {
-    return this.newQuery(trx).setModel(this);
+    const builder = new Builder(trx || this.getConnection());
+
+    return builder.setModel(this);
+  }
+
+  addGlobalScopes(builder) {
+    const globalScopes = this.getGlobalScopes();
+    for (const identifier in globalScopes) {
+      const scope = globalScopes[identifier];
+      builder.withGlobalScope(identifier, scope);
+    }
+
+    return builder;
   }
 
   setTable(table) {
@@ -183,12 +227,8 @@ class Model extends BaseModel {
     return this;
   }
 
-  static softDeletingScope(query) {
-    query.whereNull(
-      query.model.qualifyColumn(
-        query.model.getDeletedAtColumn()
-      )
-    );
+  newCollection(models = []) {
+    return new Collection(models);
   }
 
   async load(...relations) {
@@ -252,11 +292,7 @@ class Model extends BaseModel {
   }
 
   serializeDate(date) {
-    return date.toJSON();
-  }
-
-  useSoftDeletes() {
-    return this.softDeletes;
+    return dayjs(date).toISOString();
   }
 
   toData() {
@@ -271,16 +307,13 @@ class Model extends BaseModel {
     return JSON.stringify(this.toData(), ...args);
   }
 
+  toString() {
+    return this.toJson();
+  }
+
   fill(attributes) {
-    const totallyGuarded = this.totallyGuarded();
-    const fillable = this.fillableFromArray(attributes)
-    for (const key in fillable) {
-      const value = fillable[key];
-      if (this.isFillable(key)) {
-        this[key] = value;
-      } else if (totallyGuarded) {
-        throw new Error(`Add [${key}] to fillable property to allow mass assignment on [${this.constructor.name}].`);
-      }
+    for (const key in attributes) {
+      this.setAttribute(key, attributes[key]);
     }
 
     return this;
@@ -295,8 +328,18 @@ class Model extends BaseModel {
     return this[this.getDeletedAtColumn()] !== null;
   }
 
+  getIncrementing() {
+    return this.incrementing;
+  }
+
+  setIncrementing(value) {
+    this.incrementing = value;
+    return this;
+  }
+
   async save(options = {}) {
-    const query = this.newQuery(options.client).setModel(this);
+    // const query = this.newQuery(options.client).setModel(this);
+    const query = this.newModelQuery(options.client);
     let saved;
 
     await this.execHooks('saving', options);
@@ -332,9 +375,19 @@ class Model extends BaseModel {
         this.updateTimestamps();
       }
 
-      const data = await query.insert([this.getAttributes()], ['id']);
+      const attributes = this.getAttributes();
+
+      if (this.getIncrementing()) {
+        const keyName = this.getKeyName();
+        const data = await query.insert([attributes], [keyName]);
+        this.setAttribute(keyName, data[0]?.[keyName] || data[0]);
+      } else {
+        if (Object.keys(attributes).length > 0) {
+          await query.insert(attributes);
+        }
+      }
+
       this.exists = true;
-      this.attributes[this.getKeyName()] = data[0]?.id || data[0];
 
       await this.execHooks('created', options);
 
@@ -362,67 +415,28 @@ class Model extends BaseModel {
   }
 
   async delete(options = {}) {
-    if (this.useSoftDeletes()) {
-      await this.softDelete(options);
-    } else {
-      await this.forceDelete(options);
-    }
+    await this.execHooks('deleting', options);
+
+    await this.performDeleteOnModel(options);
+
+    await this.execHooks('deleted', options);
 
     return true;
   }
 
-  async softDelete(options = {}) {
-    await this.execHooks('deleting', options);
+  async performDeleteOnModel(options = {}) {
+    await this.setKeysForSaveQuery(this.newModelQuery(options.client)).delete();
 
-    const query = this.newQuery(options.client).setModel(this).where(this.getKeyName(), this.getKey());
+    this.exists = false;
+  }
 
-    const time = new Date;
-
-    const columns = {
-      [this.getDeletedAtColumn()]: time
-    };
-
-    this.attributes[this.getDeletedAtColumn()] = time;
-
-    if (this.usesTimestamps() && this.getUpdatedAtColumn() !== null) {
-      this.attributes[this.getUpdatedAtColumn()] = time;
-      columns[this.getUpdatedAtColumn()] = time;
-    }
-
-    await query.update(columns);
-
-    await this.execHooks('deleted', options);
-    await this.execHooks('trashed', options);
+  setKeysForSaveQuery(query) {
+    query.where(this.getKeyName(), '=', this.getKey());
+    return query;
   }
 
   async forceDelete(options = {}) {
-    await this.execHooks('deleting', options);
-
-    this.forceDeleting = true;
-    const query = this.newQuery(options.client).setModel(this);
-    this.exists = false;
-    const result = await query.where(this.getKeyName(), this.getKey()).query.delete();
-    this.forceDeleting = false;
-
-    await this.execHooks('deleted', options);
-    await this.execHooks('forceDeleted', options);
-    return result;
-  }
-
-  async restore(options = {}) {
-    await this.execHooks('restoring', options);
-
-    this[this.getDeletedAtColumn()] = null;
-    this.exists = true;
-    const result =  await this.save(options);
-
-    await this.execHooks('restored', options);
-
-    return result;
-  }
-
-  trashed() {
-    return this[this.getDeletedAtColumn()] !== null;
+    return await this.delete(options);
   }
 
   fresh() {
@@ -461,7 +475,7 @@ class Model extends BaseModel {
       return column;
     }
 
-    return `${this.table}.${column}`;
+    return `${this.getTable()}.${column}`;
   }
 
   getQualifiedKeyName() {

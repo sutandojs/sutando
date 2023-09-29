@@ -18,6 +18,10 @@ const HasRelations = (Model) => {
   return class extends Model {
     relations = {};
 
+    getRelation(relation) {
+      return this.relations[relation];
+    }
+
     setRelation(relation, value) {
       this.relations[relation] = value;
       return this;
@@ -31,7 +35,20 @@ const HasRelations = (Model) => {
     relationLoaded(relation) {
       return this.relations[relation] !== undefined;
     }
-    
+  
+    related(relation) {
+      if (typeof this[getRelationMethod(relation)] !== 'function') {
+        const message = `Model [${this.constructor.name}]'s relation [${relation}] doesn't exist.`;
+        throw new RelationNotFoundError(message);
+      }
+      
+      return this[getRelationMethod(relation)]();
+    }
+  
+    async getRelated(relation) {
+      return await this.related(relation).getResults();
+    }
+  
     relationsToData() {
       const data = {};
       for (const key in this.relations) {
@@ -52,19 +69,6 @@ const HasRelations = (Model) => {
   
       return data;
     }
-
-    related(relation) {
-      if (typeof this[getRelationMethod(relation)] !== 'function') {
-        const message = `Model [${this.constructor.name}]'s relation [${relation}] doesn't exist.`;
-        throw new RelationNotFoundError(message);
-      }
-      
-      return this[getRelationMethod(relation)]();
-    }
-  
-    async getRelated(relation) {
-      return await this.related(relation).getResults();
-    }
   
     guessBelongsToRelation() {
       let e = new Error();
@@ -73,29 +77,42 @@ const HasRelations = (Model) => {
       let functionName = frame.split(" ")[5];
       return getRelationName(functionName);
     }
+
+    joiningTable(related, instance = null) {
+      const segments = [
+        instance ? instance.joiningTableSegment() : _.snakeCase(related.name),
+        this.joiningTableSegment(),
+      ];
+
+      return segments.sort().join('_').toLocaleLowerCase();
+    }
+
+    joiningTableSegment() {
+      return _.snakeCase(this.constructor.name);
+    }
   
-    hasOne(model, foreignKey = null, localKey = null) {
-      const query = model.query();
-      const instance = new model;
-      foreignKey = foreignKey || this.constructor.name.toLowerCase() + '_id';
+    hasOne(related, foreignKey = null, localKey = null) {
+      const query = related.query();
+      const instance = new related;
+      foreignKey = foreignKey || this.getForeignKey();
       localKey = localKey || this.getKeyName();
   
       return (new HasOne(query, this, instance.getTable() + '.' + foreignKey, localKey));
     }
   
-    hasMany(model, foreignKey = null, localKey = null) {
-      const query = model.query();
-      const instance = new model;
-      foreignKey = foreignKey || this.constructor.name.toLowerCase() + '_id';
+    hasMany(related, foreignKey = null, localKey = null) {
+      const query = related.query();
+      const instance = new related;
+      foreignKey = foreignKey || this.getForeignKey();
       localKey = localKey || this.getKeyName();
   
       return (new HasMany(query, this, instance.getTable() + '.' + foreignKey, localKey));
     }
   
-    belongsTo(model, foreignKey = null, ownerKey = null, relation = null) {
-      const query = model.query();
-      const instance = new model;
-      foreignKey = foreignKey || instance.constructor.name.toLowerCase() + '_id';
+    belongsTo(related, foreignKey = null, ownerKey = null, relation = null) {
+      const query = related.query();
+      const instance = new related;
+      foreignKey = foreignKey || instance.getForeignKey();
       ownerKey = ownerKey ||  instance.getKeyName();
   
       relation = relation || this.guessBelongsToRelation();
@@ -103,12 +120,12 @@ const HasRelations = (Model) => {
       return (new BelongsTo(query, this, foreignKey, ownerKey, relation));
     }
   
-    belongsToMany(model, table = null, foreignPivotKey = null, relatedPivotKey = null, parentKey = null, relatedKey = null) {
-      const query = model.query();
-      const instance = new model;
-      table = table || [this.constructor.name, instance.constructor.name].sort().join('_').toLocaleLowerCase();
-      foreignPivotKey = foreignPivotKey || this.constructor.name.toLowerCase() + '_id';
-      relatedPivotKey = relatedPivotKey || instance.constructor.name.toLowerCase() + '_id';
+    belongsToMany(related, table = null, foreignPivotKey = null, relatedPivotKey = null, parentKey = null, relatedKey = null) {
+      const query = related.query();
+      const instance = new related;
+      table = table || this.joiningTable(related, instance);
+      foreignPivotKey = foreignPivotKey || this.getForeignKey();
+      relatedPivotKey = relatedPivotKey || instance.getForeignKey();
       parentKey = parentKey || this.getKeyName();
       relatedKey = relatedKey || instance.getKeyName();
   
@@ -120,6 +137,38 @@ const HasRelations = (Model) => {
         relatedPivotKey,
         parentKey,
         relatedKey
+      ));
+    }
+
+    hasOneThrough(related, through, firstKey = null, secondKey = null, localKey = null, secondLocalKey = null) {
+      through = new through;
+      const query = related.query();
+  
+      firstKey = firstKey || this.getForeignKey();
+      secondKey = secondKey || through.getForeignKey();
+  
+      return (new HasOneThrough(
+        query, this, through,
+        firstKey, secondKey, localKey || this.getKeyName(),
+        secondLocalKey || through.getKeyName()
+      ));
+    }
+
+    hasManyThrough(related, through, firstKey = null, secondKey = null, localKey = null, secondLocalKey = null) {
+      through = new through;
+      const query = related.query();
+
+      firstKey = firstKey || this.getForeignKey();
+      secondKey = secondKey || through.getForeignKey();
+
+      return (new HasManyThrough(
+        query,
+        this,
+        through,
+        firstKey,
+        secondKey,
+        localKey || this.getKeyName(),
+        secondLocalKey || through.getKeyName()
       ));
     }
   }

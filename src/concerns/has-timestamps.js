@@ -12,44 +12,49 @@ const HasTimestamps = (Model) => {
     }
 
     updateTimestamps() {
-      const time = new Date;
-      time.setMilliseconds(0);
-  
+      const time = this.freshTimestamp();
+
       const updatedAtColumn = this.getUpdatedAtColumn();
-  
+
       if (updatedAtColumn && !this.isDirty(updatedAtColumn)) {
         this.setUpdatedAt(time);
       }
-  
+
       const createdAtColumn = this.getCreatedAtColumn();
-  
+
       if (!this.exists && createdAtColumn && !this.isDirty(createdAtColumn)) {
         this.setCreatedAt(time);
       }
-  
+
       return this;
     }
 
     getCreatedAtColumn() {
       return this.constructor.CREATED_AT;
     }
-  
+
     getUpdatedAtColumn() {
       return this.constructor.UPDATED_AT;
     }
-  
-    getDeletedAtColumn() {
-      return this.constructor.DELETED_AT;
-    }
-  
+
     setCreatedAt(value) {
       this.attributes[this.getCreatedAtColumn()] = value;
       return this;
     }
-  
+
     setUpdatedAt(value) {
       this.attributes[this.getUpdatedAtColumn()] = value;
       return this;
+    }
+
+    freshTimestamp() {
+      const time = new Date;
+      time.setMilliseconds(0);
+      return time;
+    }
+
+    freshTimestampString() {
+      return this.fromDateTime(this.freshTimestamp());
     }
   }
 }

@@ -4,6 +4,8 @@ const Model = require('./model');
 const Collection = require('./collection');
 const Paginator = require('./paginator');
 const sutando = require('./sutando');
+const Scope = require('./scope');
+const SoftDeletes = require('./soft-deletes');
 const utils = require('./utils');
 const Attribute = require('./casts/attribute');
 const CastsAttributes = require('./casts-attributes');
@@ -17,6 +19,8 @@ module.exports = {
   Builder,
   Attribute,
   CastsAttributes,
+  Scope,
+  SoftDeletes,
   ...Errors,
   ...utils,
 }
