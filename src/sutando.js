@@ -35,27 +35,28 @@ class sutando {
     };
   }
 
-  static beginTransaction(name = null) {
-    const connection = this.connection(name);
-    return connection.transaction();
+  static beginTransaction(connection = null) {
+    return this.connection(connection).transaction();
   }
 
-  static transaction(callback, name = null) {
-    const connection = this.connection(name);
-    return connection.transaction(callback);
+  static transaction(callback, connection = null) {
+    return this.connection(connection).transaction(callback);
   }
 
-  static commit(name = null) {
-
-  }
-
-  static rollback(name = null) {
+  static commit(connection = null) {
 
   }
 
-  static schema(name = null) {
-    const connection = this.connection(name);
-    return connection.schema;
+  static rollback(connection = null) {
+
+  }
+
+  static table(name, connection = null) {
+    return this.connection(connection).table(name);
+  }
+
+  static schema(connection = null) {
+    return this.connection(connection).schema;
   }
 }
 
