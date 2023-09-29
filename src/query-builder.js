@@ -13,7 +13,7 @@ Builder.prototype._aggregate = async function (method, column, options = {}) {
   });
 
   const [{ aggregate }] = await this;
-  return aggregate;
+  return Number(aggregate);
 };
 
 Knex.QueryBuilder.extend('beginTransaction', async function () {
