@@ -32,10 +32,10 @@ Knex.QueryBuilder.extend('exists', async function () {
   return await this.first() !== null;
 });
 
-Knex.QueryBuilder.extend('inRandomOrder', function () {
-  this.orderByRaw('RANDOM()');
-  return this;
-});
+// Knex.QueryBuilder.extend('inRandomOrder', function () {
+//   this.orderByRaw('RANDOM()');
+//   return this;
+// });
 
 Knex.QueryBuilder.extend('skip', function (...args) {
   return this.offset(...args);

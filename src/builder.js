@@ -42,7 +42,7 @@ class Builder {
           'join', 'joinRaw', 'leftJoin', 'leftOuterJoin', 'rightJoin', 'rightOuterJoin', 'crossJoin', 
           'transacting', 'groupBy', 'groupByRaw', 'returning',
           'having', 'havingRaw', 'havingBetween', 
-          'limit', 'offset', 'orderBy', 'orderByRaw', 'inRandomOrder',
+          'limit', 'offset', 'orderBy', 'orderByRaw', // 'inRandomOrder',
           'union', 'insert', 'forUpdate', 'forShare', 'distinct',
           'clearOrder', 'clear', 'clearSelect', 'clearWhere', 'clearHaving', 'clearGroup',
         ].includes(prop)) {

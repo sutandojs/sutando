@@ -894,21 +894,21 @@ describe('Integration test', () => {
             });
           });
 
-          it('randomly sorts results', async () => {
-            let post1 = await Post.query().oldest().first();
-            let post2 = await Post.query().oldest().first();
-            let post3 = await Post.query().oldest().first();
-            let post4 = await Post.query().oldest().first();
+          // it('randomly sorts results', async () => {
+          //   let post1 = await Post.query().oldest().first();
+          //   let post2 = await Post.query().oldest().first();
+          //   let post3 = await Post.query().oldest().first();
+          //   let post4 = await Post.query().oldest().first();
 
-            expect(post1.is(post2) && post2.is(post3) && post3.is(post4)).toBe(true);
+          //   expect(post1.is(post2) && post2.is(post3) && post3.is(post4)).toBe(true);
 
-            post1 = await Post.query().inRandomOrder().first();
-            post2 = await Post.query().inRandomOrder().first();
-            post3 = await Post.query().inRandomOrder().first();
-            post4 = await Post.query().inRandomOrder().first();
+          //   post1 = await Post.query().inRandomOrder().first();
+          //   post2 = await Post.query().inRandomOrder().first();
+          //   post3 = await Post.query().inRandomOrder().first();
+          //   post4 = await Post.query().inRandomOrder().first();
 
-            expect(post1.is(post2) && post2.is(post3) && post3.is(post4)).toBe(false);
-          })
+          //   expect(post1.is(post2) && post2.is(post3) && post3.is(post4)).toBe(false);
+          // })
         });
 
         describe('#save()', () => {
