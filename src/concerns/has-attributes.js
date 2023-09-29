@@ -10,7 +10,7 @@ const HasAttributes = (Model) => {
   return class extends Model {
     attributes = {}; // protected
     casts = {};
-    changes = [];
+    changes = {};
     appends = [];
 
     setAppends(appends) {
@@ -24,23 +24,56 @@ const HasAttributes = (Model) => {
       return this;
     }
 
-    isDirty(...attributes) {
-      if (attributes.length === 0) {
-        return this.changes.length > 0;
+    syncOriginal() {
+      this.original = this.getAttributes();
+      return this;
+    }
+
+    syncChanges() {
+      this.changes = this.getDirty();
+      return this;
+    }
+
+    syncOriginalAttribute(attribute) {
+      this.syncOriginalAttributes(attribute);
+    }
+
+    syncOriginalAttributes(...attributes) {
+      attributes = _.flatMapDeep(attributes);
+
+      const modelAttributes = this.getAttributes();
+
+      for (const attribute of attributes) {
+        this.original[attribute] = modelAttributes[attribute];
       }
-  
-      return _.intersection(
-        _.flatMapDeep(attributes),
-        this.changes
-      ).length > 0;
+
+      return this;
+    }
+
+    isDirty(...attributes) {
+      const changes = this.getDirty();
+      attributes = _.flatMapDeep(attributes);
+
+      if (attributes.length === 0) {
+        return Object.keys(changes).length > 0;
+      }
+
+      for (const attribute of attributes) {
+        if (attribute in changes) {
+          return true;
+        }
+      }
+
+      return false;
     }
   
     getDirty() {
       const dirty = {};
-  
-      for (const key in this.attributes) {
-        const value = this.attributes[key];
-        if (this.changes.includes(key)) {
+      
+      const attributes = this.getAttributes();
+      for (const key in attributes) {
+        const value = attributes[key];
+        if (!this.originalIsEquivalent(key)) {
           dirty[key] = value;
         }
       }
@@ -48,12 +81,27 @@ const HasAttributes = (Model) => {
       return dirty;
     }
 
+    originalIsEquivalent(key) {
+      if (this.original[key] === undefined) {
+        return false;
+      }
+
+      const attribute = this.attributes[key];
+      const original = this.original[key];
+
+      if (attribute === original) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+
     setAttributes(attributes) {
-      this.attributes = attributes;
+      this.attributes = { ...attributes };
     }
   
     getAttributes() {
-      return this.attributes;
+      return { ...this.attributes };
     }
   
     setAttribute(key, value) {
@@ -73,12 +121,7 @@ const HasAttributes = (Model) => {
         value = JSON.stringify(value);
       }
   
-      const oldValue = this.attributes[key];
       this.attributes[key] = value;
-      
-      if (oldValue !== value) {
-        this.changes.push(key);
-      }
   
       return this;
     }

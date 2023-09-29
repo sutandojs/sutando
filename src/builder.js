@@ -959,6 +959,7 @@ class Builder {
       }
 
       const model = this.model.newInstance(item, true);
+      model.syncOriginal();
 
       return model;
     });

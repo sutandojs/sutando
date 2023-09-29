@@ -70,7 +70,7 @@ class Model extends BaseModel {
       this.table = pluralize(_.snakeCase(this.constructor.name));
     }
 
-    this.changes = Object.keys(attributes);
+    this.syncOriginal();
     this.attributes = { ...this.attributes, ...attributes };
 
     this.constructor.bootIfNotBooted();
@@ -231,7 +231,6 @@ class Model extends BaseModel {
     const query = this.newModelQuery(options.client);
 
     if (! this.exists) {
-      console.log('exists=>', this.exists)
       return await query[method](column, amount, extra);
     }
 
@@ -242,10 +241,11 @@ class Model extends BaseModel {
     }
 
     await this.execHooks('updating', options);
-    console.log(this.getKeyName, this.getKey())
 
     return await tap(await query.where(this.getKeyName(), this.getKey())[method](column, amount, extra), async () => {
+      this.syncChanges();
       await this.execHooks('updated', options);
+      this.syncOriginalAttribute(column);
     });
   }
 
@@ -313,6 +313,7 @@ class Model extends BaseModel {
 
         if (Object.keys(dirty).length > 0) {
           await query.where(this.getKeyName(), this.getKey()).query.update(dirty);
+          this.syncChanges();
           await this.execHooks('updated', options);
         }
 
@@ -339,8 +340,8 @@ class Model extends BaseModel {
     }
 
     if (saved) {
-      this.changes = [];
       await this.execHooks('saved', options);
+      this.syncOriginal();
     }
 
     return saved;
@@ -437,12 +438,13 @@ class Model extends BaseModel {
 
     const model = await this.constructor.query().where(this.getKeyName(), this.getKey()).first();
 
-    this.attributes = model.attributes;
-    this.changes = [];
+    this.attributes = { ...model.attributes };
 
     await this.load(collect(this.relations).reject((relation) => {
       return relation instanceof Pivot;
     }).keys().all());
+
+    this.syncOriginal();
 
     return this;
   }

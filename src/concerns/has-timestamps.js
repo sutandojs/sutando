@@ -44,13 +44,11 @@ const HasTimestamps = (Model) => {
   
     setCreatedAt(value) {
       this.attributes[this.getCreatedAtColumn()] = value;
-      this.changes.push(this.getCreatedAtColumn());
       return this;
     }
   
     setUpdatedAt(value) {
       this.attributes[this.getUpdatedAtColumn()] = value;
-      this.changes.push(this.getUpdatedAtColumn());
       return this;
     }
   }
