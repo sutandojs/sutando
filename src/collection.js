@@ -228,7 +228,7 @@ class Collection extends BaseCollection {
     const modelName = model.constructor.name;
 
     if (this.filter(model => {
-      return ! model instanceof modelName;
+      return ! (model instanceof modelName);
     }).isNotEmpty()) {
       throw new Error('Unable to create query for collection with mixed types.');
     }

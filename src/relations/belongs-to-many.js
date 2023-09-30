@@ -214,12 +214,6 @@ class BelongsToMany extends compose(
     return this.qualifyPivotColumn(this.foreignPivotKey);
   }
 
-  qualifyPivotColumn(column) {
-    return column.includes('.')
-      ? column
-      : `${this.table}.${column}`;
-  }
-
   getQualifiedRelatedPivotKeyName() {
     return this.qualifyPivotColumn(this.relatedPivotKey);
   }
