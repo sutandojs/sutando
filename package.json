@@ -1,6 +1,6 @@
 {
   "name": "sutando",
-  "version": "0.2.1",
+  "version": "1.0.0",
   "packageManager": "pnpm@7.1.0",
   "description": "A modern Node.js ORM. Makes it enjoyable to interact with your database. Support Mysql, MSSql, MariaDB, Sqlite.",
   "homepage": "https://sutando.org/",
@@ -9,7 +9,6 @@
     "type": "git",
     "url": "https://github.com/sutandojs/sutando.git"
   },
-
   "engines": {
     "node": ">=14",
     "pnpm": ">=4"

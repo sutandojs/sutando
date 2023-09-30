@@ -81,10 +81,7 @@ class HasManyThrough extends Relation {
   
   match(models, results, relation) {
     const dictionary = this.buildDictionary(results);
-
-    // Once we have the dictionary we can simply spin through the parent models to
-    // link them up with their children using the keyed dictionary to make the
-    // matching very convenient and easy work. Then we'll just return them.
+    
     for (const model of models) {
       if (dictionary[key = this.getDictionaryKey(model.getAttribute(this.localKey))] !== undefined) {
         model.setRelation(
