@@ -1,4 +1,5 @@
-const _ = require('lodash');
+const snakeCase = require('lodash/snakeCase');
+const camelCase = require('lodash/camelCase');
 const dayjs = require('dayjs');
 const advancedFormat = require('dayjs/plugin/advancedFormat');
 dayjs.extend(advancedFormat);
@@ -7,32 +8,32 @@ const now = (format = 'YYYY-MM-DD HH:mm:ss') => dayjs().format(format);
 
 const getRelationName = (relationMethod) => {
   // 'relation' length 8
-  return _.snakeCase(relationMethod.substring(8));
+  return snakeCase(relationMethod.substring(8));
 }
 
 const getScopeName = (scopeMethod) => {
   // 'scope' length 5
-  return _.snakeCase(scopeMethod.substring(5));
+  return snakeCase(scopeMethod.substring(5));
 }
 
 const getRelationMethod = (relation) => {
-  return _.camelCase(`relation_${relation}`);
+  return camelCase(`relation_${relation}`);
 }
 
 const getScopeMethod = (scope) => {
-  return _.camelCase(`scope_${scope}`);
+  return camelCase(`scope_${scope}`);
 }
 
 const getAttrMethod = (attr) => {
-  return _.camelCase(`attribute_${attr}`);
+  return camelCase(`attribute_${attr}`);
 }
 
 const getGetterMethod = (attr) => {
-  return _.camelCase(`get_${attr}_attribute`);
+  return camelCase(`get_${attr}_attribute`);
 }
 
 const getSetterMethod = (attr) => {
-  return _.camelCase(`set_${attr}_attribute`);
+  return camelCase(`set_${attr}_attribute`);
 }
 
 const getAttrName = (attrMethod) => {

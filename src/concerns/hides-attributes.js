@@ -1,4 +1,5 @@
-const _ = require('lodash');
+const flattenDeep = require('lodash/flattenDeep');
+const difference = require('lodash/difference');
 
 const HidesAttributes = (Model) => {
   return class extends Model {
@@ -6,18 +7,18 @@ const HidesAttributes = (Model) => {
     visible = [];
 
     makeVisible(...keys) {
-      const visible = _.flatMapDeep(keys);
+      const visible = flattenDeep(keys);
       this.visible = [...this.visible, ...visible];
 
-      this.hidden = _.difference(this.hidden, visible);
+      this.hidden = difference(this.hidden, visible);
       return this;
     }
 
     makeHidden(...keys) {
-      const hidden = _.flatMapDeep(keys);
+      const hidden = flattenDeep(keys);
       this.hidden = [...this.hidden, ...hidden];
 
-      this.visible = _.difference(this.visible, hidden);
+      this.visible = difference(this.visible, hidden);
       return this;
     }
 

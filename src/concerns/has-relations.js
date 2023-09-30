@@ -1,16 +1,6 @@
-const _ = require('lodash');
-const {
-  now,
-  getRelationName,
-  getScopeName,
-  getRelationMethod,
-  getScopeMethod,
-  getAttrMethod,
-  getGetterMethod,
-  getSetterMethod,
-  getAttrName,
-  tap,
-} = require('../utils');
+const unset = require('lodash/unset');
+const snakeCase = require('lodash/snakeCase');
+const { getRelationName, getRelationMethod } = require('../utils');
 
 const { RelationNotFoundError } = require('../errors');
 
@@ -28,7 +18,7 @@ const HasRelations = (Model) => {
     }
   
     unsetRelation(relation) {
-      _.unset(this.relations, relation);
+      unset(this.relations, relation);
       return this;
     }
   
@@ -80,7 +70,7 @@ const HasRelations = (Model) => {
 
     joiningTable(related, instance = null) {
       const segments = [
-        instance ? instance.joiningTableSegment() : _.snakeCase(related.name),
+        instance ? instance.joiningTableSegment() : snakeCase(related.name),
         this.joiningTableSegment(),
       ];
 
@@ -88,7 +78,7 @@ const HasRelations = (Model) => {
     }
 
     joiningTableSegment() {
-      return _.snakeCase(this.constructor.name);
+      return snakeCase(this.constructor.name);
     }
   
     hasOne(related, foreignKey = null, localKey = null) {

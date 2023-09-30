@@ -1,4 +1,6 @@
-const _ = require('lodash');
+const flattenDeep = require('lodash/flattenDeep');
+const unset = require('lodash/unset');
+const flatten = require('lodash/flatten');
 const dayjs = require('dayjs');
 const {
   getAttrMethod,
@@ -22,7 +24,7 @@ const HasAttributes = (Model) => {
     }
   
     append(...keys) {
-      const appends = _.flatMapDeep(keys);
+      const appends = flattenDeep(keys);
       this.appends = [...this.appends, ...appends];
       return this;
     }
@@ -50,7 +52,7 @@ const HasAttributes = (Model) => {
     }
 
     syncOriginalAttributes(...attributes) {
-      attributes = _.flatMapDeep(attributes);
+      attributes = flattenDeep(attributes);
 
       const modelAttributes = this.getAttributes();
 
@@ -63,7 +65,7 @@ const HasAttributes = (Model) => {
 
     isDirty(...attributes) {
       const changes = this.getDirty();
-      attributes = _.flatMapDeep(attributes);
+      attributes = flattenDeep(attributes);
 
       if (attributes.length === 0) {
         return Object.keys(changes).length > 0;
@@ -250,11 +252,11 @@ const HasAttributes = (Model) => {
   
       for (const key in attributes) {
         if (this.hidden.includes(key)) {
-          _.unset(attributes, key);
+          unset(attributes, key);
         }
   
         if (this.visible.length > 0 && this.visible.includes(key) === false) {
-          _.unset(attributes, key);
+          unset(attributes, key);
         }
       }
 
@@ -364,7 +366,7 @@ const HasAttributes = (Model) => {
   
     hasCast(key, types = []) {
       if (this.casts[key] !== undefined) {
-        types = _.flatMap(types);
+        types = flatten(types);
         return types ? types.includes(this.getCastType(key)) : true;
       }
 

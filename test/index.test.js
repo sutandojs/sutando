@@ -1,4 +1,5 @@
-const _ = require('lodash');
+const unset = require('lodash/unset');
+const filter = require('lodash/filter');
 const { sutando, Model, Collection, Builder, Paginator, compose, SoftDeletes, Attribute } = require('../src');
 const config = require(process.env.SUTANDO_CONFIG || './config');
 const { ModelNotFoundError } = require('../src/errors');
@@ -612,23 +613,23 @@ describe('Integration test', () => {
     
           it('allows passing an object to query', () => {
             const query = User.query();
-            expect(_.filter(query.query._statements, {grouping: 'where'}).length).toBe(0);
+            expect(filter(query.query._statements, {grouping: 'where'}).length).toBe(0);
             
             const q = query.where('id', 1).orWhere('id', '>', 10);
             expect(q).toStrictEqual(query);
-            expect(_.filter(query.query._statements, {grouping: 'where'}).length).toBe(2);
+            expect(filter(query.query._statements, {grouping: 'where'}).length).toBe(2);
           });
     
           it('allows passing a function to query', () => {
             const query = User.query();
-            expect(_.filter(query.query._statements, {grouping: 'where'}).length).toBe(0);
+            expect(filter(query.query._statements, {grouping: 'where'}).length).toBe(0);
     
             const q = query.where((q) => {
               q.where('id', 1).orWhere('id', '>', '10');
             });
             
             expect(q).toEqual(query);
-            expect(_.filter(query.query._statements, {grouping: 'where'}).length).toBe(1);
+            expect(filter(query.query._statements, {grouping: 'where'}).length).toBe(1);
           });
         });
 
@@ -1309,8 +1310,8 @@ describe('Integration test', () => {
             return Post.query().with('thumbnail').find(1)
               .then(post => {
                 const xpost = post.toData();
-                _.unset(xpost, 'created_at');
-                _.unset(xpost, 'updated_at');
+                unset(xpost, 'created_at');
+                unset(xpost, 'updated_at');
                 expect(xpost).toEqual({"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "thumbnail": null, "user_id": 1});
               });
           });
@@ -1326,11 +1327,11 @@ describe('Integration test', () => {
             return User.query().with('posts').find(1)
               .then(user => {
                 const xuser = user.toData();
-                _.unset(xuser, 'created_at');
-                _.unset(xuser, 'updated_at');
+                unset(xuser, 'created_at');
+                unset(xuser, 'updated_at');
                 xuser.posts.forEach(post => {
-                  _.unset(post, 'created_at');
-                  _.unset(post, 'updated_at');
+                  unset(post, 'created_at');
+                  unset(post, 'updated_at');
                 })
                 expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "user_id": 1}]});
               });
@@ -1340,8 +1341,8 @@ describe('Integration test', () => {
             return Post.query().with('author').find(1)
               .then(post => {
                 const author = post.toData().author;
-                _.unset(author, 'created_at');
-                _.unset(author, 'updated_at');
+                unset(author, 'created_at');
+                unset(author, 'updated_at');
                 expect(author).toEqual({
                   "first_name": "Tim", "id": 1, "name": "Shuri",
                 });
@@ -1358,8 +1359,8 @@ describe('Integration test', () => {
           it('eager loads "belongsTo" relationship with default values', async () => {
             let post = await Post.query().with('default_author').find(4);
             let xpost = post.toData();
-            _.unset(xpost, 'created_at');
-            _.unset(xpost, 'updated_at');
+            unset(xpost, 'created_at');
+            unset(xpost, 'updated_at');
 
             expect(post.default_author).toBeInstanceOf(User);
             expect(xpost).toEqual({
@@ -1374,8 +1375,8 @@ describe('Integration test', () => {
 
             post = await Post.query().with('default_post_author').find(4);
             xpost = post.toData();
-            _.unset(xpost, 'created_at');
-            _.unset(xpost, 'updated_at');
+            unset(xpost, 'created_at');
+            unset(xpost, 'updated_at');
 
             expect(post.default_post_author).toBeInstanceOf(User);
             expect(xpost).toEqual({
@@ -1393,11 +1394,11 @@ describe('Integration test', () => {
             return Post.query().with('tags').find(1)
               .then(post => {
                 const xpost = post.toData();
-                _.unset(xpost, 'created_at');
-                _.unset(xpost, 'updated_at');
+                unset(xpost, 'created_at');
+                unset(xpost, 'updated_at');
                 xpost.tags.forEach(tag => {
-                  _.unset(tag, 'created_at');
-                  _.unset(tag, 'updated_at');
+                  unset(tag, 'created_at');
+                  unset(tag, 'updated_at');
                 })
 
                 expect(xpost).toEqual({
@@ -1412,8 +1413,8 @@ describe('Integration test', () => {
             }).find(1)
               .then(post => {
                 const xpost = post.toData();
-                _.unset(xpost, 'created_at');
-                _.unset(xpost, 'updated_at');
+                unset(xpost, 'created_at');
+                unset(xpost, 'updated_at');
                 expect(xpost).toEqual({
                   "author": {"id": 1, "name": "Shuri"}, "content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "user_id": 1
                 });
@@ -1424,8 +1425,8 @@ describe('Integration test', () => {
             return Post.query().with('author:id,name').find(1)
               .then(post => {
                 const xpost = post.toData();
-                _.unset(xpost, 'created_at');
-                _.unset(xpost, 'updated_at');
+                unset(xpost, 'created_at');
+                unset(xpost, 'updated_at');
                 expect(xpost).toEqual({"author": {"id": 1, "name": "Shuri"}, "content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "user_id": 1});
               });
           });
@@ -1444,14 +1445,14 @@ describe('Integration test', () => {
             return User.query().with('posts.tags').first()
               .then(user => {
                 const xuser = user.toData();
-                _.unset(xuser, 'created_at');
-                _.unset(xuser, 'updated_at');
+                unset(xuser, 'created_at');
+                unset(xuser, 'updated_at');
                 xuser.posts.forEach(post => {
-                  _.unset(post, 'created_at');
-                  _.unset(post, 'updated_at');
+                  unset(post, 'created_at');
+                  unset(post, 'updated_at');
                   post.tags.forEach(tag => {
-                    _.unset(tag, 'created_at');
-                    _.unset(tag, 'updated_at');
+                    unset(tag, 'created_at');
+                    unset(tag, 'updated_at');
                   })
                 })
 
@@ -1465,14 +1466,14 @@ describe('Integration test', () => {
             }, 'posts.thumbnail').first()
               .then(user => {
                 const xuser = user.toData();
-                _.unset(xuser, 'created_at');
-                _.unset(xuser, 'updated_at');
+                unset(xuser, 'created_at');
+                unset(xuser, 'updated_at');
                 xuser.posts.forEach(post => {
-                  _.unset(post, 'created_at');
-                  _.unset(post, 'updated_at');
+                  unset(post, 'created_at');
+                  unset(post, 'updated_at');
                   post.tags.forEach(tag => {
-                    _.unset(tag, 'created_at');
-                    _.unset(tag, 'updated_at');
+                    unset(tag, 'created_at');
+                    unset(tag, 'updated_at');
                   })
                 })
                 expect(xuser).toEqual({"first_name": "Tim", "id": 1, "name": "Shuri", "posts": [{"content": "Lorem ipsum Labore eu sed sed Excepteur enim laboris deserunt adipisicing dolore culpa aliqua cupidatat proident ea et commodo labore est adipisicing ex amet exercitation est.", "id": 1, "name": "changed name", "tags": [{"id": 3, "name": "exciting", "pivot": {"post_id": 1, "tag_id": 3}}, {"id": 2, "name": "boring", "pivot": {"post_id": 1, "tag_id": 2}}, {"id": 1, "name": "cool", "pivot": {"post_id": 1, "tag_id": 1}}], "thumbnail": null, "user_id": 1}]});

@@ -1,7 +1,9 @@
 const { collect } = require('collect.js');
+const difference = require('lodash/difference');
+const merge = require('lodash/merge');
+const concat = require('lodash/concat');
+const isArray = require('lodash/isArray');
 const Collection = require('../../collection');
-const _ = require('lodash');
-const { now } = require('../../utils');
 
 let model = null;
 const getBaseModel = () => {
@@ -91,7 +93,7 @@ const InteractsWithPivotTable = (Relation) => {
       const results = await this.getCurrentlyAttachedPivots();
       const current = results.length === 0 ? [] : results.map(result => result.toData()).pluck(this.relatedPivotKey).all().map(i => String(i));
     
-      const detach = _.difference(current, Object.keys(
+      const detach = difference(current, Object.keys(
         records = this.formatRecordsList(this.parseIds(ids))
       ));
     
@@ -101,7 +103,7 @@ const InteractsWithPivotTable = (Relation) => {
         changes.detached = this.castKeys(detach);
       }
     
-      changes = _.merge(
+      changes = merge(
         changes, await this.attachNew(records, current, false)
       );
     
@@ -119,8 +121,8 @@ const InteractsWithPivotTable = (Relation) => {
     }
     
     withPivot(columns) {
-      this.pivotColumns = _.concat(
-        this.pivotColumns, _.isArray(columns) ? columns : Array.prototype.slice.call(arguments)
+      this.pivotColumns = concat(
+        this.pivotColumns, isArray(columns) ? columns : Array.prototype.slice.call(arguments)
       );
     
       return this;
@@ -211,7 +213,7 @@ const InteractsWithPivotTable = (Relation) => {
     
     formatRecordsList(records) {
       return collect(records).mapWithKeys((attributes, id) => {
-        if (! _.isArray(attributes)) {
+        if (! isArray(attributes)) {
           [id, attributes] = [attributes, {}];
         }
     
@@ -326,7 +328,7 @@ const InteractsWithPivotTable = (Relation) => {
     formatAttachRecord(key, value, attributes, hasTimestamps) {
       const [id, newAttributes] = this.extractAttachIdAndAttributes(key, value, attributes);
     
-      return _.merge(
+      return merge(
         this.baseAttachRecord(id, hasTimestamps), newAttributes
       );
     }
@@ -349,7 +351,7 @@ const InteractsWithPivotTable = (Relation) => {
     }
     
     extractAttachIdAndAttributes(key, value, newAttributes) {
-      return _.isArray(value)
+      return isArray(value)
         ? [key, {...value, ...newAttributes}]
         : [value, newAttributes];
     }
@@ -369,7 +371,7 @@ const InteractsWithPivotTable = (Relation) => {
         return value.pluck(this.relatedKey).all();
       }
     
-      return _.isArray(value) ? value : [value];
+      return isArray(value) ? value : [value];
     }
   };
 }

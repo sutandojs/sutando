@@ -1,7 +1,15 @@
+const { Collection: BaseCollection } = require('collect.js');
+const merge = require('lodash/merge');
+const snakeCase = require('lodash/snakeCase');
+const flattenDeep = require('lodash/flattenDeep');
+const flatten = require('lodash/flatten');
+const isString = require('lodash/isString');
+const isFinite = require('lodash/isFinite');
+const unset = require('lodash/unset');
+const isArray = require('lodash/isArray');
+const difference = require('lodash/difference');
 const Paginator = require('./paginator');
-const _ = require('lodash');
 const Collection = require('./collection');
-const { Collection: BaseCollection } = require('collect.js')
 const Relation = require('./relations/relation');
 const BelongsToMany = require('./relations/belongs-to-many');
 const Scope = require('./scope');
@@ -73,7 +81,7 @@ class Builder {
           }
 
           if (prop.startsWith('where')) {
-            const column = _.snakeCase(prop.substring(5));
+            const column = snakeCase(prop.substring(5));
             return (...args) => {
               target.query.where(column, ...args);
               return target.asProxy()
@@ -176,7 +184,7 @@ class Builder {
 
     const column = this.model.getUpdatedAtColumn();
 
-    values = _.merge(
+    values = merge(
       { [column]: this.model.freshTimestampString() },
       values
     );
@@ -282,7 +290,7 @@ class Builder {
       scope = scope.constructor.name;
     }
     
-    _.unset(this._scopes, scope);
+    unset(this._scopes, scope);
 
     return this;
   }
@@ -308,11 +316,11 @@ class Builder {
         [args[0]]: args[1]
       });
 
-      this.eagerLoad = _.merge(this.eagerLoad, eagerLoad);
+      this.eagerLoad = merge(this.eagerLoad, eagerLoad);
       return this;
     }
 
-    const relations = _.flattenDeep(args);
+    const relations = flattenDeep(args);
     if (relations.length === 0) {
       return this;
     }
@@ -327,16 +335,16 @@ class Builder {
         eagerLoad = relation;
       }
 
-      eagerLoads = _.merge(eagerLoads, eagerLoad);
+      eagerLoads = merge(eagerLoads, eagerLoad);
     }
 
-    this.eagerLoad = _.merge(this.eagerLoad, this.parseWithRelations(eagerLoads));
+    this.eagerLoad = merge(this.eagerLoad, this.parseWithRelations(eagerLoads));
     
     return this;
   }
 
   has(relation, operator = '>=', count = 1, boolean = 'and', callback = null) {
-    if (_.isString(relation)) {
+    if (isString(relation)) {
       if (relation.includes('.')) {
         return this.hasNested(relation, operator, count, boolean, callback);
       }
@@ -459,7 +467,7 @@ class Builder {
       return this;
     }
 
-    relations = _.flattenDeep([relations]);
+    relations = flattenDeep([relations]);
     let eagerLoads = {};
 
     for (const relation of relations) {
@@ -472,7 +480,7 @@ class Builder {
         eagerLoad = relation;
       }
 
-      eagerLoads = _.merge(eagerLoads, eagerLoad);
+      eagerLoads = merge(eagerLoads, eagerLoad);
     }
 
     relations = eagerLoads;
@@ -516,7 +524,7 @@ class Builder {
 
       constraints(query);
 
-      alias = alias || _.snakeCase(`${name} ${action} ${column}`.replace('/[^[:alnum:][:space:]_]/u', ''));
+      alias = alias || snakeCase(`${name} ${action} ${column}`.replace('/[^[:alnum:][:space:]_]/u', ''));
 
       if (action === 'exists') {
         this.select(
@@ -572,7 +580,7 @@ class Builder {
   parseSub(query) {
     if (query instanceof Builder || query instanceof Relation) {
       return [query.toSql().sql, query.toSql().bindings];
-    } else if (_.isString(query)) {
+    } else if (isString(query)) {
       return [query, []];
     } else {
       throw new Error('A subquery must be a query builder instance, a Closure, or a string.');
@@ -598,7 +606,7 @@ class Builder {
   }
 
   withCount(...args) {
-    return this.withAggregate(_.flattenDeep(args), '*', 'count');
+    return this.withAggregate(flattenDeep(args), '*', 'count');
   }
 
   withMax(relation, column) {
@@ -662,13 +670,13 @@ class Builder {
 
     for (const key in relations) {
       const value = relations[key];
-      if (_.isString(value) || _.isFinite(parseInt(value))) {
+      if (isString(value) || isFinite(parseInt(value))) {
         continue;
       }
       
       const [attribute, attributeSelectConstraint] = this.parseNameAndAttributeSelectionConstraint(key, value);
 
-      preparedRelationships = _.merge(
+      preparedRelationships = merge(
         preparedRelationships,
         {
           [`${prefix}${attribute}`]: attributeSelectConstraint
@@ -676,14 +684,14 @@ class Builder {
         this.prepareNestedWithRelationships(value, `${prefix}${attribute}`),
       );
       
-      _.unset(relations, key);
+      unset(relations, key);
     }
 
     for (const key in relations) {
       const value = relations[key];
       let attribute = key, attributeSelectConstraint = value;
 
-      if (_.isString(value)) {
+      if (isString(value)) {
         [attribute, attributeSelectConstraint] = this.parseNameAndAttributeSelectionConstraint(value);
       }
       
@@ -769,9 +777,9 @@ class Builder {
   async findOrFail(ids, columns = '*') {
     const data = await this.find(ids, columns);
 
-    if (_.isArray(ids)) {
+    if (isArray(ids)) {
       if (data.count() !== ids.length) {
-        throw (new ModelNotFoundError).setModel(this.model.constructor.name, _.difference(ids, data.modelKeys()));
+        throw (new ModelNotFoundError).setModel(this.model.constructor.name, difference(ids, data.modelKeys()));
       }
 
       return data;
@@ -799,7 +807,7 @@ class Builder {
       return instance;
     }
 
-    return this.newModelInstance(_.merge(attributes, values));
+    return this.newModelInstance(merge(attributes, values));
   }
 
   async firstOrCreate(attributes = {}, values = {}) {
@@ -808,7 +816,7 @@ class Builder {
       return instance;
     }
 
-    return tap(this.newModelInstance(_.merge(attributes, values)), async (instance) => {
+    return tap(this.newModelInstance(merge(attributes, values)), async (instance) => {
       await instance.save();
     });
   }
@@ -840,7 +848,7 @@ class Builder {
   }
 
   async find(id, columns = '*') {
-    if (_.isArray(id) || id instanceof Collection) {
+    if (isArray(id) || id instanceof Collection) {
       return await this.findMany(id, columns);
     }
 
@@ -852,7 +860,7 @@ class Builder {
       ids = ids.modelKeys();
     }
 
-    ids = _.isArray(ids) ? ids : [ids];
+    ids = isArray(ids) ? ids : [ids];
 
     if (ids.length === 0) {
       return new Collection([]);
@@ -875,7 +883,7 @@ class Builder {
       ids = ids.all();
     }
 
-    ids = _.isArray(ids) ? ids : Array.prototype.slice.call(arguments);
+    ids = isArray(ids) ? ids : Array.prototype.slice.call(arguments);
 
     if (ids.length === 0) {
       return 0;
@@ -938,7 +946,7 @@ class Builder {
   }
 
   async getModels(...columns) {
-    columns = _.flatMap(columns);
+    columns = flatten(columns);
     if (columns.length > 0) {
       if (this.query._statements.filter(item => item.grouping == 'columns').length > 0 && columns[0] !== '*') {
         this.query.select(...columns);

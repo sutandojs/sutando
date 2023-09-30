@@ -1,7 +1,6 @@
 const { compose } = require('../utils');
 const SupportsDefaultModels = require('./concerns/supports-default-models');
 const HasManyThrough = require('./has-many-through');
-const _ = require('lodash');
 
 class HasOneThrough extends compose(
   HasManyThrough,

@@ -1,5 +1,9 @@
-const { collect, Collection: BaseCollection } = require('collect.js')
-const _ = require('lodash')
+const { collect, Collection: BaseCollection } = require('collect.js');
+const difference = require('lodash/difference');
+const pick = require('lodash/pick');
+const omit = require('lodash/omit');
+const isEmpty = require('lodash/isEmpty');
+const isArray = require('lodash/isArray');
 
 class Collection extends BaseCollection {
   async load(...relations) {
@@ -25,13 +29,13 @@ class Collection extends BaseCollection {
       .get())
       .keyBy(this.first().getKeyName());
 
-    const attributes = _.difference(
+    const attributes = difference(
       Object.keys(models.first().getAttributes()),
       [models.first().getKeyName()]
     );
 
     this.each((model) => {
-      const extraAttributes = _.pick(models.get(model.getKey()).getAttributes(), attributes);
+      const extraAttributes = pick(models.get(model.getKey()).getAttributes(), attributes);
 
       model.fill(extraAttributes)
         .syncOriginalAttributes(attributes);
@@ -100,7 +104,7 @@ class Collection extends BaseCollection {
   }
 
   except(keys) {
-    const dictionary = _.omit(this.getDictionary(), keys);
+    const dictionary = omit(this.getDictionary(), keys);
 
     return new this.constructor(Object.values(dictionary));
   }
@@ -108,7 +112,7 @@ class Collection extends BaseCollection {
   intersect(items) {
     const intersect = new this.constructor;
 
-    if (_.isEmpty(items)) {
+    if (isEmpty(items)) {
       return intersect;
     }
 
@@ -137,7 +141,7 @@ class Collection extends BaseCollection {
       key = key.getKey();
     }
 
-    if (_.isArray(key)) {
+    if (isArray(key)) {
       if (this.isEmpty()) {
         return new this.constructor;
       }
@@ -197,7 +201,7 @@ class Collection extends BaseCollection {
       return new Collection(this.items);
     }
 
-    const dictionary = _.pick(this.getDictionary(), keys);
+    const dictionary = pick(this.getDictionary(), keys);
 
     return new this.constructor(Object.values(dictionary));
   }

@@ -1,15 +1,16 @@
+const set = require('lodash/set');
+const get = require('lodash/get');
 const Scope = require('../scope');
-const _ = require('lodash');
 const { InvalidArgumentError } = require('../errors');
 
 const HasGlobalScopes = (Model) => {
   return class extends Model {
     static addGlobalScope(scope, implementation = null) {
       if (typeof scope === 'string' && implementation instanceof Scope) {
-        _.set(this.globalScopes, this.name + '.' + scope, implementation);
+        set(this.globalScopes, this.name + '.' + scope, implementation);
         return implementation;
       } else if (scope instanceof Scope) {
-        _.set(this.globalScopes, this.name + '.' + scope.constructor.name, scope);
+        set(this.globalScopes, this.name + '.' + scope.constructor.name, scope);
         return scope;
       }
 
@@ -22,10 +23,10 @@ const HasGlobalScopes = (Model) => {
 
     static getGlobalScope(scope) {
       if (typeof scope === 'string') {
-        return _.get(this.globalScopes, this.name + '.' + scope);
+        return get(this.globalScopes, this.name + '.' + scope);
       }
 
-      return _.get(
+      return get(
         this.globalScopes, this.name + '.' + scope.constructor.name,
       );
     }
@@ -39,7 +40,7 @@ const HasGlobalScopes = (Model) => {
     }
 
     getGlobalScopes() {
-      return _.get(this.constructor.globalScopes, this.constructor.name, {});
+      return get(this.constructor.globalScopes, this.constructor.name, {});
     }
   }
 }

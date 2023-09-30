@@ -1,6 +1,6 @@
+const isArray = require('lodash/isArray');
 const { ModelNotFoundError } = require("../errors");
 const Relation = require("./relation");
-const _ = require('lodash');
 const { tap } = require('../utils');
 
 class HasManyThrough extends Relation {
@@ -155,7 +155,7 @@ class HasManyThrough extends Relation {
   }
   
   async find(id, columns = ['*']) {
-    if (_.isArray(id)) {
+    if (isArray(id)) {
       return await this.findMany(id, columns);
     }
 
@@ -177,7 +177,7 @@ class HasManyThrough extends Relation {
   async findOrFail(id, columns = ['*']) {
     const result = await this.find(id, columns);
 
-    if (_.isArray(id)) {
+    if (isArray(id)) {
       if (result.count() === id.length) {
         return result;
       }

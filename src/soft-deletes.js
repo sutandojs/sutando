@@ -1,4 +1,4 @@
-const _ = require('lodash');
+const isNull = require('lodash/isNull');
 const { tap } = require('./utils');
 const SoftDeletingScope = require('./soft-deleting-scope');
 
@@ -97,7 +97,7 @@ const softDeletes = (Model) => {
     }
 
     trashed() {
-      return ! _.isNull(this[this.getDeletedAtColumn()]);
+      return ! isNull(this[this.getDeletedAtColumn()]);
     }
 
     static softDeleted(callback) {

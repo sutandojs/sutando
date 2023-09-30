@@ -1,4 +1,6 @@
-const _ = require('lodash');
+const snakeCase = require('lodash/snakeCase');
+const flattenDeep = require('lodash/flattenDeep');
+const merge = require('lodash/merge');
 const collect = require('collect.js');
 const pluralize = require('pluralize');
 const Builder = require('./builder');
@@ -172,7 +174,7 @@ class Model extends BaseModel {
   }
 
   getForeignKey() {
-    return _.snakeCase(this.constructor.name) + '_' + this.getKeyName();
+    return snakeCase(this.constructor.name) + '_' + this.getKeyName();
   }
 
   getConnectionName() {
@@ -180,7 +182,7 @@ class Model extends BaseModel {
   }
 
   getTable() {
-    return this.table || pluralize(_.snakeCase(this.constructor.name));
+    return this.table || pluralize(snakeCase(this.constructor.name));
   }
 
   getConnection() {
@@ -245,7 +247,7 @@ class Model extends BaseModel {
   }
 
   async loadCount(...relations) {
-    relations = _.flatMapDeep(relations);
+    relations = flattenDeep(relations);
     return await this.loadAggregate(relations, '*', 'count');
   }
 
@@ -296,7 +298,7 @@ class Model extends BaseModel {
   }
 
   toData() {
-    return _.merge(this.attributesToData(), this.relationsToData());
+    return merge(this.attributesToData(), this.relationsToData());
   }
 
   toJSON() {

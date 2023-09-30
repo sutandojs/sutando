@@ -1,7 +1,9 @@
-const Relation = require('./relation');
 const { collect } = require('collect.js');
+const unset = require('lodash/unset');
+const isEqual = require('lodash/isEqual');
+const concat = require('lodash/concat');
+const Relation = require('./relation');
 const Collection = require('../collection');
-const _ = require('lodash');
 const { tap, compose } = require('../utils');
 const InteractsWithPivotTable = require('./concerns/interacts-with-pivot-table');
 
@@ -135,7 +137,7 @@ class BelongsToMany extends compose(
       if (key.startsWith('pivot_')) {
         values[key.substring(6)] = value;
         
-        _.unset(model.attributes, key);
+        unset(model.attributes, key);
       }
     }
 
@@ -150,17 +152,17 @@ class BelongsToMany extends compose(
   }
   
   shouldSelect(columns = ['*']) {
-    if (_.isEqual(columns, ['*'])) {
+    if (isEqual(columns, ['*'])) {
       columns = [this.related.getTable() + '.*'];
     }
 
-    return _.concat(columns, this.aliasedPivotColumns());
+    return concat(columns, this.aliasedPivotColumns());
   }
   
   aliasedPivotColumns() {
     const defaults = [this.foreignPivotKey, this.relatedPivotKey];
 
-    return collect(_.concat(defaults, this.pivotColumns)).map((column) => {
+    return collect(concat(defaults, this.pivotColumns)).map((column) => {
       return this.qualifyPivotColumn(column) + ' as pivot_' + column;
     }).unique().all();
   }
