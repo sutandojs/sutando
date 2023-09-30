@@ -6,7 +6,7 @@ const { now } = require('../../utils');
 let model = null;
 const getBaseModel = () => {
   if (!model) {
-    model = require('../model');
+    model = require('../../model');
   }
   return model;
 }
@@ -15,7 +15,7 @@ let pivot = null;
 
 const getPivotModel = () => {
   if (!pivot) {
-    pivot = require('../pivot');
+    pivot = require('../../pivot');
   }
   return pivot;
 }
