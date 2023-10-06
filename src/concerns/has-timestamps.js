@@ -12,7 +12,7 @@ const HasTimestamps = (Model) => {
     }
 
     updateTimestamps() {
-      const time = this.freshTimestamp();
+      const time = this.freshTimestampString();
 
       const updatedAtColumn = this.getUpdatedAtColumn();
 
