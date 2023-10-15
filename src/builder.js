@@ -285,7 +285,7 @@ class Builder {
   }
 
   callNamedScope(scope, parameters) {
-    return this.model.callNamedScope(scope, [this, parameters]);
+    return this.model.callNamedScope(scope, [this, ...parameters]);
   }
 
   callScope(scope, parameters = []) {
