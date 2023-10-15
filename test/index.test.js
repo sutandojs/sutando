@@ -291,6 +291,10 @@ describe('Integration test', () => {
       }
 
       class Post extends Base {
+        scopeIdOf(query, id) {
+          return query.where('id', id);
+        }
+
         scopePublish(query) {
           return query.where('status', 1);
         }
@@ -742,6 +746,16 @@ describe('Integration test', () => {
 
             expect(users).toBeInstanceOf(Collection);
             expect(users.count()).toBe(0);
+          });
+
+          it('returns results filtered using scope', async () => {
+            let posts = await Post.query().idOf(3).get();
+            expect(posts.modelKeys()).toEqual([3]);
+
+            posts = await Post.query().idOf(3).orWhere(q => {
+              q.idOf(4);
+            }).get();
+            expect(posts.modelKeys()).toEqual([3, 4]);
           });
         });
 

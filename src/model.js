@@ -15,7 +15,7 @@ const HasGlobalScopes = require('./concerns/has-global-scopes');
 const UniqueIds = require('./concerns/unique-ids');
 const dayjs = require('dayjs');
 
-const { compose, tap } = require('./utils');
+const { compose, tap, getScopeMethod } = require('./utils');
 
 const BaseModel = compose(
   class {},
@@ -222,6 +222,16 @@ class Model extends BaseModel {
     }
 
     return builder;
+  }
+
+  hasNamedScope(name) {
+    const scope = getScopeMethod(name)
+    return typeof this[scope] === 'function';
+  }
+
+  callNamedScope(scope, parameters) {
+    const scopeMethod = getScopeMethod(scope);
+    return this[scopeMethod](...parameters);
   }
 
   setTable(table) {
