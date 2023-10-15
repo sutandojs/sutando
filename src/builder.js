@@ -27,7 +27,7 @@ class Builder {
   actions;
   localMacros = {};
   eagerLoad = {};
-  _scopes = {};
+  globalScopes = {};
 
   constructor(query) {
     this.query = query;
@@ -80,6 +80,14 @@ class Builder {
             };
           }
 
+          if (target.hasNamedScope(prop)) {
+            const instance = target.asProxy();
+            return (...args) => {
+              instance.callNamedScope(prop, args);
+              return instance;
+            }
+          }
+
           if (prop.startsWith('where')) {
             const column = snakeCase(prop.substring(5));
             return (...args) => {
@@ -87,19 +95,27 @@ class Builder {
               return target.asProxy()
             }
           }
-
-          const scopeMethod = getScopeMethod(prop);
-          if (typeof target?.model?.[scopeMethod] === 'function') {
-            return (...args) => {
-              target._scopes[prop] = (query) => target.model[scopeMethod](query, ...args);
-              return target.asProxy();
-            }
-          }
         }
       },
     }
 
     return new Proxy(this, handler)
+  }
+
+  orWhere(...args) {
+    if (typeof args[0] === 'function') {
+      const callback = args[0];
+      this.query.orWhere((query) => {
+        this.query = query;
+        callback(this);
+      });
+
+      return this;
+    }
+
+    this.query.orWhere(...args);
+
+    return this;
   }
 
   async chunk(count, callback) {
@@ -139,7 +155,7 @@ class Builder {
     const builder = new this.constructor(query);
     builder.connection = this.connection;
     builder.setModel(this.model);
-    builder._scopes = { ...this._scopes };
+    builder.globalScopes = { ...this.globalScopes };
     builder.localMacros = { ...this.localMacros };
     
     return builder;
@@ -245,14 +261,14 @@ class Builder {
   }
 
   applyScopes() {
-    if (!this._scopes) {
+    if (!this.globalScopes) {
       return this;
     }
 
     const builder = this;
 
-    for (const identifier in builder._scopes) {
-      const scope = builder._scopes[identifier];
+    for (const identifier in builder.globalScopes) {
+      const scope = builder.globalScopes[identifier];
 
       if (scope instanceof Scope) {
         scope.apply(builder, builder.getModel());
@@ -264,11 +280,24 @@ class Builder {
     return builder;
   }
 
+  hasNamedScope(name) {
+    return this.model && this.model.hasNamedScope(name);
+  }
+
+  callNamedScope(scope, parameters) {
+    return this.model.callNamedScope(scope, [this, parameters]);
+  }
+
+  callScope(scope, parameters = []) {
+    const result = scope(this, ...parameters) || this;
+    return result;
+  }
+
   scopes(scopes) {
     scopes.map(scopeName => {
       const scopeMethod = getScopeMethod(scopeName);
       if (typeof this.model[scopeMethod] === 'function') {
-        this._scopes[scopeName] = this.model[scopeMethod];
+        this.globalScopes[scopeName] = this.model[scopeMethod];
       }
     });
 
@@ -276,7 +305,7 @@ class Builder {
   }
 
   withGlobalScope(identifier, scope) {
-    this._scopes[identifier] = scope;
+    this.globalScopes[identifier] = scope;
 
     if (typeof scope.extend === 'function') {
       scope.extend(this);
@@ -290,7 +319,7 @@ class Builder {
       scope = scope.constructor.name;
     }
     
-    unset(this._scopes, scope);
+    unset(this.globalScopes, scope);
 
     return this;
   }
