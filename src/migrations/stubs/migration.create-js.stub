@@ -1,0 +1,20 @@
+const { Migration, sutando } = require('sutando');
+
+module.exports = class extends Migration {
+  /**
+    * Run the migrations.
+    */
+  async up(schema) {
+    await schema.createTable('{{ table }}', (table) => {
+      table.id();
+      table.timestamps();
+    });
+  }
+
+  /**
+    * Reverse the migrations.
+    */
+  async down(schema) {
+    await schema.dropTableIfExists('{{ table }}');
+  }
+};

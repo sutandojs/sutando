@@ -1,0 +1,7 @@
+const { Model } = require('sutando');
+
+class {{ name }} extends Model {
+  //
+}
+
+module.exports = {{ name }};
