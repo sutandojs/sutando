@@ -9,6 +9,7 @@ const SoftDeletes = require('./soft-deletes');
 const utils = require('./utils');
 const Attribute = require('./casts/attribute');
 const CastsAttributes = require('./casts-attributes');
+const Migration = require('./migrations/migration');
 const Errors = require('./errors');
 
 module.exports = {
@@ -19,6 +20,7 @@ module.exports = {
   Builder,
   Attribute,
   CastsAttributes,
+  Migration,
   Scope,
   SoftDeletes,
   ...Errors,

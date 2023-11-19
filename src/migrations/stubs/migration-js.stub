@@ -1,0 +1,17 @@
+const { Migration } = require('sutando');
+
+module.exports = class extends Migration {
+  /**
+    * Run the migrations.
+    */
+  async up(schema) {
+    //
+  }
+
+  /**
+    * Reverse the migrations.
+    */
+  async down(schema) {
+    //
+  }
+};

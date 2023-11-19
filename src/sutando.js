@@ -58,6 +58,12 @@ class sutando {
   static schema(connection = null) {
     return this.connection(connection).schema;
   }
+
+  static async destroyAll() {
+    await Promise.all(Object.values(this.manager).map((connection) => {
+      return connection?.destroy();
+    }));
+  }
 }
 
 module.exports = sutando;

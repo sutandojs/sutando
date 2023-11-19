@@ -4,6 +4,7 @@
   "packageManager": "pnpm@7.1.0",
   "description": "A modern Node.js ORM. Makes it enjoyable to interact with your database. Support Mysql, MSSql, MariaDB, Sqlite.",
   "homepage": "https://sutando.org/",
+  "bin": "./bin/cli.js",
   "main": "./src/index.js",
   "repository": {
     "type": "git",
@@ -31,19 +32,23 @@
   },
   "dependencies": {
     "collect.js": "^4.34.3",
+    "colorette": "^2.0.20",
+    "commander": "^11.1.0",
     "dayjs": "^1.11.5",
+    "escalade": "^3.1.1",
     "knex": "^2.5.1",
     "lodash": "^4.17.21",
-    "pluralize": "^8.0.0"
+    "pluralize": "^8.0.0",
+    "resolve-from": "^5.0.0"
   },
   "devDependencies": {
+    "husky": "^8.0.1",
     "jest": "^29.0.3",
+    "lint-staged": "^13.0.0",
     "mysql2": "2.3.3",
     "pg": "8.8.0",
-    "sqlite3": "5.1.2",
-    "husky": "^8.0.1",
     "prettier": "2.6.2",
-    "lint-staged": "^13.0.0",
+    "sqlite3": "5.1.2",
     "tedious": "15.1.0"
   },
   "keywords": [
