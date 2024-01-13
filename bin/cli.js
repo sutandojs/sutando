@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 const { program } = require('commander');
 const path = require('path');
 const { promisify } = require('util');
@@ -13,7 +14,7 @@ const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
 
 const env = {
-  modulePath: resolveFrom(process.cwd(), 'sutando') || findUpModulePath(process.cwd(), 'sutando'),
+  modulePath: resolveFrom.silent(process.cwd(), 'sutando') || findUpModulePath(process.cwd(), 'sutando'),
   cwd: process.cwd(),
   configPath: findUpConfig(process.cwd(), 'sutando.config', ['js'])
 }
@@ -43,7 +44,7 @@ const cliVersion = [
 ].join(' ');
 
 const localVersion = [
-  color.blue('Sutando Local version:'),
+  'Sutando Local version:',
   color.green(modulePackage.version || 'None'),
 ].join(' ');
 
@@ -55,6 +56,7 @@ program
   .command('init')
   .description('Create a fresh sutando config.')
   .action(async () => {
+    localModuleCheck(env);
     const type = 'js';
     if (env.configuration) {
       exit(`Error: ${env.sutando.config} already exists`);

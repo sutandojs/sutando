@@ -6,7 +6,7 @@ module.exports = class extends Migration {
     */
   async up(schema) {
     await schema.createTable('{{ table }}', (table) => {
-      table.id();
+      table.increments('id');
       table.timestamps();
     });
   }
