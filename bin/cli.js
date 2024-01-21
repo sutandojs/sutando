@@ -16,7 +16,7 @@ const readFile = promisify(fs.readFile);
 const env = {
   modulePath: resolveFrom.silent(process.cwd(), 'sutando') || findUpModulePath(process.cwd(), 'sutando'),
   cwd: process.cwd(),
-  configPath: findUpConfig(process.cwd(), 'sutando.config', ['js'])
+  configPath: findUpConfig(process.cwd(), 'sutando.config', ['js','cjs'])
 }
 
 let modulePackage = {};
