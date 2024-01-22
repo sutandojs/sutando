@@ -16,7 +16,7 @@ const readFile = promisify(fs.readFile);
 const env = {
   modulePath: resolveFrom.silent(process.cwd(), 'sutando') || findUpModulePath(process.cwd(), 'sutando'),
   cwd: process.cwd(),
-  configPath: findUpConfig(process.cwd(), 'sutando.config', ['js','cjs'])
+  configPath: findUpConfig(process.cwd(), 'sutando.config', ['js', 'cjs'])
 }
 
 let modulePackage = {};
@@ -58,8 +58,8 @@ program
   .action(async () => {
     localModuleCheck(env);
     const type = 'js';
-    if (env.configuration) {
-      exit(`Error: ${env.sutando.config} already exists`);
+    if (env.configPath) {
+      exit(`Error: ${env.configPath} already exists`);
     }
 
     try {
@@ -84,6 +84,10 @@ program
   .option(`--table`, 'The table to migrate')
   .option(`--create`, 'The table to be created')
   .action(async (name, opts) => {
+    if (!env.configPath) {
+      exit('Error: sutando config not found. Run `sutando init` first.');
+    }
+
     const config = require(env.configPath);
 
     try {
@@ -129,6 +133,10 @@ program
         console.log('Migration table created successfully.');
       }
     }
+    
+    if (!env.configPath) {
+      exit('Error: sutando config not found. Run `sutando init` first.');
+    }
 
     const config = require(env.configPath);
     const table = config?.migration?.table || 'migrations';
@@ -159,6 +167,10 @@ program
   .option('--step <number>', 'The number of migrations to be reverted.')
   .option('--path <path>', 'The path to the migrations directory.')
   .action(async (opts) => {
+    if (!env.configPath) {
+      exit('Error: sutando config not found. Run `sutando init` first.');
+    }
+
     const config = require(env.configPath);
     const table = config?.migration?.table || 'migrations';
 
@@ -187,6 +199,10 @@ program
   .description('Show the status of each migration.')
   .option('--path <path>', 'The path to the migrations directory.')
   .action(async (opts) => {
+    if (!env.configPath) {
+      exit('Error: sutando config not found. Run `sutando init` first.');
+    }
+
     const config = require(env.configPath);
     const table = config?.migration?.table || 'migrations';
 
@@ -260,6 +276,10 @@ program
   .description('Create a new Model file.')
   .option('--force', 'Force creation if model already exists.', false)
   .action(async (name, opts) => {
+    if (!env.configPath) {
+      exit('Error: sutando config not found. Run `sutando init` first.');
+    }
+    
     const config = require(env.configPath);
 
     try {
