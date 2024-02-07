@@ -11,6 +11,7 @@ const Attribute = require('./casts/attribute');
 const CastsAttributes = require('./casts-attributes');
 const Migration = require('./migrations/migration');
 const Errors = require('./errors');
+const HasUniqueIds = require('./concerns/has-unique-ids');
 
 module.exports = {
   sutando,
@@ -23,6 +24,7 @@ module.exports = {
   Migration,
   Scope,
   SoftDeletes,
+  HasUniqueIds,
   ...Errors,
   ...utils,
 }
