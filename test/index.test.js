@@ -1,11 +1,10 @@
 const unset = require('lodash/unset');
 const filter = require('lodash/filter');
-const { sutando, Model, Collection, Builder, Paginator, compose, SoftDeletes, Attribute } = require('../src');
+const { sutando, Model, Collection, Builder, Paginator, compose, SoftDeletes, Attribute, HasUniqueIds } = require('../src');
 const config = require(process.env.SUTANDO_CONFIG || './config');
 const { ModelNotFoundError } = require('../src/errors');
 const dayjs = require('dayjs');
 const crypto = require('crypto');
-const HasUniqueIds = require('../src/concerns/has-unique-ids');
 
 Promise.delay = function (duration) {
   return new Promise((resolve, reject) => {
