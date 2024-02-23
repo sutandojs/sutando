@@ -8,6 +8,7 @@
     "sutando": "./bin/cli.js"
   },
   "main": "./src/index.js",
+  "types": "./types/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/sutandojs/sutando.git"
