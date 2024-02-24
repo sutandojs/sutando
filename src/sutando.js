@@ -27,7 +27,7 @@ class sutando {
         dateStrings: true,
         typeCast: function (field, next) {
           if (field.type === 'JSON') {
-            return field.string();
+            return field.string('utf8');
           }
           return next();
         }
