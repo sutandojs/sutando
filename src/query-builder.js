@@ -63,7 +63,9 @@ Knex.QueryBuilder.extend('chunk', async function (count, callback) {
       break;
     }
 
-    if (callback(results, page) === false) {
+    const bool = await callback(results, page);
+
+    if (bool === false) {
       return false;
     }
 
