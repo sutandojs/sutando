@@ -257,6 +257,10 @@ class Builder {
     return this;
   }
 
+  qualifyColumn(column) {
+    return this.model.qualifyColumn(column);
+  }
+
   setTable(table) {
     this.query = this.query.table(table);
     return this
@@ -420,22 +424,24 @@ class Builder {
     return this.has(relation, operator, count, 'or', callback);
   }
 
-  whereRelation(relation, column, operator = null, value = null) {
+  whereRelation(relation, ...args) {
+    const column = args.shift();
     return this.whereHas(relation, (query) => {
       if (typeof column === 'function') {
         column(query);
       } else {
-        query.where(column, operator, value);
+        query.where(column, ...args);
       }
     });
   }
 
-  orWhereRelation(relation, column, operator = null, value = null) {
+  orWhereRelation(relation, ...args) {
+    const column = args.shift();
     return this.orWhereHas(relation, function (query) {
       if (typeof column === 'function') {
         column(query);
       } else {
-        query.where(column, operator, value);
+        query.where(column, ...args);
       }
     });
   }
