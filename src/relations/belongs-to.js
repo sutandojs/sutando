@@ -61,6 +61,33 @@ class BelongsTo extends compose(
     return models;
   }
 
+  getQualifiedForeignKeyName() {
+    return this.child.qualifyColumn(this.foreignKey);
+  }
+
+  getRelationExistenceQuery(query, parentQuery, columns = ['*']) {
+    if (parentQuery.getQuery()._single.table == query.getQuery()._single.table) {
+      return this.getRelationExistenceQueryForSelfRelation(query, parentQuery, columns);
+    }
+
+    return query.select(columns).whereColumn(
+      this.getQualifiedForeignKeyName(), '=', query.qualifyColumn(this.ownerKey)
+    );
+  }
+
+  getRelationExistenceQueryForSelfRelation(query, parentQuery, columns = ['*']) {
+    const hash = this.getRelationCountHash();
+    query.select(columns).from(
+      query.getModel().getTable() + ' as ' + hash
+    );
+
+    query.getModel().setTable(hash);
+
+    return query.whereColumn(
+      hash + '.' + this.ownerKey, '=', this.getQualifiedForeignKeyName()
+    );
+  }
+
   initRelation(models, relation) {
     models.map(model => {
       model.setRelation(relation, this.getDefaultFor(model));
