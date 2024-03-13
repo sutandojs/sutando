@@ -304,6 +304,8 @@ const HasAttributes = (Model) => {
       } else if (typeof this[getAttrMethod(key)] === 'function') {
         const caster = this[getAttrMethod(key)]();
         return caster.get(key, this.attributes);
+      } else if (key in this) {
+        return this[key];
       }
 
       return value;

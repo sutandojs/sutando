@@ -103,6 +103,16 @@ describe('Model', () => {
           })
         })
       }
+
+      get another_full_name() {
+        return `${this.attributes.firstName} ${this.attributes.lastName}`;
+      }
+
+      set another_full_name(value) {
+        const names = value.split(' ');
+        this.attributes.firstName = names[0];
+        this.attributes.lastName = names[1];
+      }
     }
     class Post extends Model {}
 
@@ -166,6 +176,32 @@ describe('Model', () => {
         const data = testModel.makeVisible('firstName', 'lastName').makeHidden('lastName').toData();
 
         expect(data).toEqual({firstName: 'Joe'});
+      });
+
+      it('append virtual attribute', () => {
+        const data = testModel.append(['another_full_name', 'full_name']).toData();
+        expect(data).toEqual({
+          address: '123 Main St.',
+          firstName: 'Joe',
+          another_full_name: 'Joe Shmoe',
+          full_name: 'Joe Shmoe',
+          id: 1,
+          lastName: 'Shmoe'
+        });
+
+        testModel.another_full_name = 'Bill Gates';
+        expect(testModel.toData()).toEqual({
+          address: '123 Main St.',
+          firstName: 'Bill',
+          another_full_name: 'Bill Gates',
+          full_name: 'Bill Gates',
+          id: 1,
+          lastName: 'Gates'
+        });
+
+        expect(testModel.isDirty('firstName')).toBeTruthy();
+        expect(testModel.isDirty('lastName')).toBeTruthy();
+        expect(testModel.isDirty()).toBeTruthy();
       });
     });
 
@@ -248,11 +284,11 @@ describe('Integration test', () => {
     // }
   ];
 
-  if (process.argv.includes('--client=mysql')) {
+  if (process.env.DB === 'mysql') {
     databases.push(config.mysql);
-  } else if (process.argv.includes('--client=sqlite')) {
+  } else if (process.env.DB === 'sqlite') {
     databases.push(config.sqlite);
-  } else if (process.argv.includes('--client=postgres')) {
+  } else if (process.env.DB === 'postgres') {
     databases.push(config.postgres);
   }
 
