@@ -222,7 +222,7 @@ declare module 'sutando' {
     static transaction(callback: void, name?: string | null): any;
     static schema(name?: string | null): SchemaBuilder;
     static table(table: string, connection?: string): QueryBuilder<any>;
-    static destroyAll(): void;
+    static destroyAll(): Promise<void>;
   }
 
   export class Attribute {
@@ -358,6 +358,7 @@ declare module 'sutando' {
     getAttributes(): object;
     getAttribute(key: string): any;
     setAttribute(key: string, value: any): this;
+    fill(attributes: any): this;
     setAppends(appends: string[]): this;
     append(key: string | string[]): this;
     getRelation<T extends Model>(relation: string): T | Collection<T> | null | undefined;
