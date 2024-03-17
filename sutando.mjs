@@ -1,4 +1,4 @@
-import Sutando from './src';
+import Sutando from './src/index.js';
 
 const {
   sutando,
