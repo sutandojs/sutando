@@ -319,6 +319,10 @@ const HasAttributes = (Model) => {
       return this.getDates().includes(key) || this.isDateCastable(key);
     }
 
+    serializeDate(date) {
+      return date ? dayjs(date).toISOString() : null;
+    }
+
     getDates() {
       return this.usesTimestamps() ? [
         this.getCreatedAtColumn(),
