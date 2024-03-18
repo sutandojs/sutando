@@ -304,7 +304,7 @@ class Model extends BaseModel {
   }
 
   serializeDate(date) {
-    return dayjs(date).toISOString();
+    return date ? dayjs(date).toISOString() : null;
   }
 
   toData() {
