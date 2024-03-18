@@ -13,7 +13,6 @@ const HidesAttributes = require('./concerns/hides-attributes');
 const HasHooks = require('./concerns/has-hooks');
 const HasGlobalScopes = require('./concerns/has-global-scopes');
 const UniqueIds = require('./concerns/unique-ids');
-const dayjs = require('dayjs');
 
 const { compose, tap, getScopeMethod } = require('./utils');
 
@@ -301,10 +300,6 @@ class Model extends BaseModel {
       await this.execHooks('updated', options);
       this.syncOriginalAttribute(column);
     });
-  }
-
-  serializeDate(date) {
-    return date ? dayjs(date).toISOString() : null;
   }
 
   toData() {
