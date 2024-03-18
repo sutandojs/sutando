@@ -4,6 +4,7 @@ specifiers:
   collect.js: ^4.34.3
   colorette: ^2.0.20
   commander: ^11.1.0
+  cross-env: ^7.0.3
   dayjs: ^1.11.5
   escalade: ^3.1.1
   husky: ^8.0.1
@@ -31,6 +32,7 @@ dependencies:
   resolve-from: 5.0.0
 
 devDependencies:
+  cross-env: 7.0.3
   husky: 8.0.2
   jest: 29.3.1
   lint-staged: 13.0.3
@@ -1432,6 +1434,14 @@ packages:
 
   /convert-source-map/2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
+    dev: true
+
+  /cross-env/7.0.3:
+    resolution: {integrity: sha512-+/HKd6EgcQCJGh2PSjZuUitQBQynKor4wrFbRg4DtAgS1aWO+gU52xpH7M9ScGgXSYmAVS9bIJ8EzuaGw0oNAw==}
+    engines: {node: '>=10.14', npm: '>=6', yarn: '>=1'}
+    hasBin: true
+    dependencies:
+      cross-spawn: 7.0.3
     dev: true
 
   /cross-spawn/7.0.3:

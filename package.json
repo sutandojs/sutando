@@ -31,9 +31,9 @@
     "pnpm": ">=4"
   },
   "scripts": {
-    "test:mysql": "jest --client=mysql",
-    "test:postgres": "jest --client=postgres",
-    "test:sqlite": "jest --client=sqlite"
+    "test:mysql": "cross-env DB=mysql jest",
+    "test:postgres": "cross-env DB=postgres jest",
+    "test:sqlite": "cross-env DB=sqlite jest"
   },
   "husky": {
     "hooks": {
@@ -58,6 +58,7 @@
     "resolve-from": "^5.0.0"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "husky": "^8.0.1",
     "jest": "^29.0.3",
     "lint-staged": "^13.0.0",
