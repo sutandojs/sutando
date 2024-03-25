@@ -1,10 +1,10 @@
 const unset = require('lodash/unset');
 const filter = require('lodash/filter');
-const { sutando, Model, Collection, Builder, Paginator, compose, SoftDeletes, Attribute, HasUniqueIds } = require('../src');
+const { sutando, Model, Collection, Builder, Paginator, compose, SoftDeletes, Attribute, HasUniqueIds, CastsAttributes, ModelNotFoundError } = require('../src');
 const config = require(process.env.SUTANDO_CONFIG || './config');
-const { ModelNotFoundError } = require('../src/errors');
 const dayjs = require('dayjs');
 const crypto = require('crypto');
+const collect = require('collect.js');
 
 Promise.delay = function (duration) {
   return new Promise((resolve, reject) => {
@@ -379,6 +379,33 @@ describe('Integration test', () => {
 
       class SoftDeletePost extends compose(Base, SoftDeletes) {}
 
+      class Json extends CastsAttributes {
+        static get(model, key, value, attributes) {
+          try {
+            return JSON.parse(value);
+          } catch (e) {
+            return null;
+          }
+        }
+      
+        static set(model, key, value, attributes) {
+          return JSON.stringify(value);
+        }
+      }
+
+      class CastPost extends Base {
+        casts = {
+          text_to_json: 'json',
+          text_to_collection: 'collection',
+          custom_cast: Json,
+          some_string: 'string',
+          some_int: 'int',
+          some_date: 'date',
+          some_datetime: 'datetime',
+          is_published: 'boolean',
+        }
+      }
+
       beforeAll(() => {
         return Promise.all(['users', 'tags', 'posts', 'post_tag', 'administrators', 'comments', 'media'].map(table => {
           return connection.schema.dropTableIfExists(table);
@@ -440,6 +467,18 @@ describe('Integration test', () => {
               table.string('name');
               table.text('content');
               table.datetime('deleted_at').defaultTo(null);
+              table.timestamps();
+            })
+            .createTable('cast_posts', function(table) {
+              table.increments('id');
+              table.text('text_to_json');
+              table.text('text_to_collection');
+              table.text('custom_cast');
+              table.integer('some_string');
+              table.string('some_int');
+              table.timestamp('some_date');
+              table.timestamp('some_datetime');
+              table.tinyint('is_published').defaultTo(0);
               table.timestamps();
             })
         }).then(() => {
@@ -604,6 +643,20 @@ describe('Integration test', () => {
                 created_at: date,
                 updated_at: date,
                 deleted_at: date
+              },
+            ]),
+            connection.table('cast_posts').insert([
+              {
+                text_to_json: '{"a": "foo", "b": "bar"}',
+                text_to_collection: '[{"name":"foo1"}, {"name":"bar2"}]',
+                custom_cast: '{"a": "foo", "b": "bar"}',
+                some_string: 1,
+                some_int: '1',
+                some_date: date,
+                some_datetime: date,
+                is_published: 1,
+                created_at: date,
+                updated_at: date,
               },
             ]),
           ])
@@ -1303,7 +1356,41 @@ describe('Integration test', () => {
             count = await SoftDeletePost.query().withTrashed().count();
             expect(count).toBe(2);
           });
-        })
+        });
+
+        describe('#casts', () => {
+          it('#query', async () => {
+            const post = await CastPost.query().find(1);
+            expect(post.is_published).toBe(true);
+            expect(post.some_int).toBe(1);
+            expect(post.some_string).toBe('1');
+            expect(post.text_to_json).toEqual({
+              a: 'foo',
+              b: 'bar',
+            });
+            expect(post.text_to_collection).toEqual(collect([
+              { name: 'foo1' }, 
+              { name: 'bar2' }
+            ]));
+            expect(post.custom_cast).toEqual({
+              a: 'foo',
+              b: 'bar',
+            });
+          });
+
+          it('update attributes', async () => {
+            const post = await CastPost.query().find(1);
+            post.text_to_json = { a: 'bar', b: 'foo' };
+            expect(post.attributes.text_to_json).toBe('{"a":"bar","b":"foo"}');
+            post.text_to_collection = collect([
+              { name: 'bar1' }, 
+              { name: 'foo2' }
+            ]);
+            expect(post.attributes.text_to_collection).toBe('[{"name":"bar1"},{"name":"foo2"}]');
+            post.custom_cast = { a: 'bar', b: 'foo' };
+            expect(post.attributes.custom_cast).toBe('{"a":"bar","b":"foo"}');
+          });
+        });
       });
 
       describe('Relation', () => {
