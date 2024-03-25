@@ -476,8 +476,8 @@ describe('Integration test', () => {
               table.text('custom_cast');
               table.integer('some_string');
               table.string('some_int');
-              table.timestamp('some_date');
-              table.timestamp('some_datetime');
+              table.datetime('some_date').defaultTo(null);
+              table.datetime('some_datetime').defaultTo(null);
               table.tinyint('is_published').defaultTo(0);
               table.timestamps();
             })
