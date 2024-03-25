@@ -133,6 +133,14 @@ class Model extends BaseModel {
     return model;
   }
 
+  newFromBuilder(attributes = {}, connection = null) {
+    const model = this.newInstance({}, true);
+    model.setRawAttributes(attributes, true);
+    model.setConnection(connection || this.getConnectionName());
+
+    return model;
+  }
+
   asProxy () {
     const handler = {
       get: function (target, prop) {

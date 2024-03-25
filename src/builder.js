@@ -985,7 +985,7 @@ class Builder {
   async getModels(...columns) {
     columns = flatten(columns);
     if (columns.length > 0) {
-      if (this.query._statements.filter(item => item.grouping == 'columns').length > 0 && columns[0] !== '*') {
+      if (this.query._statements.filter(item => item.grouping == 'columns').length == 0 && columns[0] !== '*') {
         this.query.select(...columns);
       }
     }
@@ -1061,8 +1061,7 @@ class Builder {
         return item;
       }
 
-      const model = this.model.newInstance(item, true);
-      model.syncOriginal();
+      const model = this.model.newFromBuilder(item);
 
       return model;
     }));

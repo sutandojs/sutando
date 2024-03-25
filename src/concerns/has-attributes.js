@@ -8,6 +8,7 @@ const {
   getSetterMethod,
 } = require('../utils');
 const CastsAttributes = require('../casts-attributes');
+const collect = require('collect.js');
 
 const HasAttributes = (Model) => {
   return class extends Model {
@@ -112,6 +113,16 @@ const HasAttributes = (Model) => {
     setAttributes(attributes) {
       this.attributes = { ...attributes };
     }
+
+    setRawAttributes(attributes, sync = false) {
+      this.attributes = attributes;
+
+      if (sync) {
+        this.syncOriginal();
+      }
+
+      return this;
+    }
   
     getAttributes() {
       return { ...this.attributes };
@@ -144,11 +155,15 @@ const HasAttributes = (Model) => {
       const casts = this.getCasts();
       const castType = casts[key];
   
-      if (this.isCustomCast()) {
-        return castType.set(this, key, value, this.attributes);
+      if (this.isCustomCast(castType)) {
+        value = castType.set(this, key, value, this.attributes);
       }
   
       if (castType === 'json') {
+        value = JSON.stringify(value);
+      }
+
+      if (castType === 'collection') {
         value = JSON.stringify(value);
       }
 
@@ -225,12 +240,16 @@ const HasAttributes = (Model) => {
         case 'object':
         case 'json':
           try {
-            return typeof value === 'string' ? JSON.parse(value) : value;
+            return JSON.parse(value);
           } catch (e) {
             return null;
           }
         case 'collection':
-          return new Collection(typeof value === 'string' ? JSON.parse(value) : value);
+          try {
+            return collect(JSON.parse(value));
+          } catch (e) {
+            return collect([]);
+          }
         case 'date':
           return this.asDate(value);
         case 'datetime':
@@ -239,8 +258,8 @@ const HasAttributes = (Model) => {
         case 'timestamp':
           return this.asTimestamp(value);
       }
-  
-      if (this.isCustomCast()) {
+      
+      if (this.isCustomCast(castType)) {
         return castType.get(this, key, value, this.attributes);
       }
   
@@ -371,9 +390,9 @@ const HasAttributes = (Model) => {
     }
   
     hasCast(key, types = []) {
-      if (this.casts[key] !== undefined) {
+      if (key in this.casts) {
         types = flatten(types);
-        return types ? types.includes(this.getCastType(key)) : true;
+        return types.length > 0 ? types.includes(this.getCastType(key)) : true;
       }
 
       return false;
