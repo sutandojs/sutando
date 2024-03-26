@@ -238,8 +238,6 @@ declare module 'sutando' {
   }
 
   export class Relation<M> extends Builder<M, any> {
-    save(model: M): Promise<boolean>;
-    saveMany(models: M[]): Promise<boolean[]>;
   }
   class HasOneOrMany<M> extends Relation<M> {
     save(model: M): Promise<M>;
@@ -314,6 +312,7 @@ declare module 'sutando' {
     protected with: string[];
     protected withCount: string[];
     protected trx: AnyQueryBuilder | null;
+    protected timestamps: boolean;
     protected dateFormat: string;
     visible: string[];
     hidden: string[];
@@ -422,6 +421,7 @@ declare module 'sutando' {
 
   export class QueryBuilder<M, R = Collection<M> | Model> {
     schema: SchemaBuilder;
+    table(name: string): this;
     select: SelectMethod<this>;
     columns: SelectMethod<this>;
     column: SelectMethod<this>;
