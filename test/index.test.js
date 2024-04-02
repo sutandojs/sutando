@@ -49,19 +49,27 @@ describe('Model', () => {
     }
   }
 
-  class Post extends Model {
-    relationAuthor() {
-      return this.belongsTo(User);
-    }
+  // class Post extends Model {
+  //   relationAuthor() {
+  //     return this.belongsTo(User);
+  //   }
 
-    relationTags() {
-      return this.belongsToMany(Tag, 'post_tag');
-    }
+  //   relationTags() {
+  //     return this.belongsToMany(Tag, 'post_tag');
+  //   }
 
-    relationThumbnail() {
-      return this.belongsTo(Thumbnail, 'thumbnail_id');
+  //   relationThumbnail() {
+  //     return this.belongsTo(Thumbnail, 'thumbnail_id');
+  //   }
+  // }
+
+  const Post = sutando.model('Post', {
+    relations: {
+      author: () => this.belongsTo(User),
+      tags: () => this.belongsToMany(Tag, 'post_tag'),
+      thumbnail: () => this.belongsTo(Thumbnail, 'thumbnail_id'),
     }
-  }
+  });
 
   class Tag extends Model {
     relationPosts() {
@@ -325,47 +333,71 @@ describe('Integration test', () => {
         }
       }
 
-      class Post extends Base {
-        scopeIdOf(query, id) {
-          return query.where('id', id);
-        }
+      // class Post extends Base {
+      //   scopeIdOf(query, id) {
+      //     return query.where('id', id);
+      //   }
 
-        scopePublish(query) {
-          return query.where('status', 1);
-        }
+      //   scopePublish(query) {
+      //     return query.where('status', 1);
+      //   }
 
-        relationAuthor() {
-          return this.belongsTo(User);
-        }
+      //   relationAuthor() {
+      //     return this.belongsTo(User);
+      //   }
 
-        relationDefaultAuthor() {
-          return this.belongsTo(User).withDefault({
+      //   relationDefaultAuthor() {
+      //     return this.belongsTo(User).withDefault({
+      //       name: 'Default Author'
+      //     });
+      //   }
+
+      //   relationDefaultPostAuthor() {
+      //     return this.belongsTo(User).withDefault((user, post) => {
+      //       user.name = post.name + ' - Default Author';
+      //     });
+      //   }
+
+      //   relationThumbnail() {
+      //     return this.belongsTo(Media, 'thumbnail_id');
+      //   }
+
+      //   relationMedia() {
+      //     return this.belongsToMany(Media);
+      //   }
+
+      //   relationTags() {
+      //     return this.belongsToMany(Tag);
+      //   }
+
+      //   relationComments() {
+      //     return this.hasMany(Comment);
+      //   }
+      // }
+
+      const Post = sutando.model('Post', {
+        connection: config.client,
+        scopes: {
+          idOf: function (query, id) {
+            return query.where('id', id);
+          },
+          publish: function (query) {
+            return query.where('status', 1);
+          }
+        },
+        relations: {
+          author: function() { return this.belongsTo(User)},
+          default_author: function() { return this.belongsTo(User).withDefault({
             name: 'Default Author'
-          });
-        }
-
-        relationDefaultPostAuthor() {
-          return this.belongsTo(User).withDefault((user, post) => {
+          })},
+          default_post_author: function() { return this.belongsTo(User).withDefault((user, post) => {
             user.name = post.name + ' - Default Author';
-          });
+          })},
+          thumbnail: function() { return this.belongsTo(Media, 'thumbnail_id')},
+          media: function() { return this.belongsToMany(Media)},
+          tags: function() { return this.belongsToMany(Tag)},
         }
-
-        relationThumbnail() {
-          return this.belongsTo(Media, 'thumbnail_id');
-        }
-
-        relationMedia() {
-          return this.belongsToMany(Media);
-        }
-
-        relationTags() {
-          return this.belongsToMany(Tag);
-        }
-
-        relationComments() {
-          return this.hasMany(Comment);
-        }
-      }
+      });
 
       class Tag extends Base {
         relationPosts() {
@@ -1016,10 +1048,15 @@ describe('Integration test', () => {
 
         describe('#save()', () => {
           it('saves a new object', async () => {
+            const count = await Post.query().count();
+            expect(count).toBe(6);
+
             const post = new Post;
             post.user_id = 0;
             post.name = 'Fourth post';
-            await post.save();
+            const a = await post.save();
+            const count1 = await Post.query().count();
+            expect(count1).toBe(7);
 
             expect(Number(post.id)).toBe(7);
 
@@ -1049,7 +1086,6 @@ describe('Integration test', () => {
               name: 'A Cool Blog',
             });
             post.user_id = 1;
-
             await post.save();
             expect(post.toData()).toHaveProperty('name', 'A Cool Blog');
             expect(post.toData()).toHaveProperty('user_id', 1);

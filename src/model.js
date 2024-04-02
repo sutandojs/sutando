@@ -5,7 +5,6 @@ const collect = require('collect.js');
 const pluralize = require('pluralize');
 const Builder = require('./builder');
 const Collection = require('./collection');
-const sutando = require('./sutando');
 const HasAttributes = require('./concerns/has-attributes');
 const HasRelations = require('./concerns/has-relations');
 const HasTimestamps = require('./concerns/has-timestamps');
@@ -193,6 +192,7 @@ class Model extends BaseModel {
   }
 
   getConnection() {
+    const sutando = require('./sutando');
     return sutando.connection(this.connection);
   }
 

@@ -1,8 +1,10 @@
 const QueryBuilder = require('./query-builder');
+const { getRelationMethod, getScopeMethod } = require('./utils');
 
 class sutando {
   static manager = {};
   static connections = {};
+  static models = {};
 
   static connection(connection = null) {
     return this.getConnection(connection);
@@ -63,6 +65,41 @@ class sutando {
     await Promise.all(Object.values(this.manager).map((connection) => {
       return connection?.destroy();
     }));
+  }
+
+  static model(name, options) {
+    const Model = require('./model');
+    sutando.models = {
+      ...sutando.models,
+      [name]: class extends Model {
+        table = options?.table || null;
+        connection = options?.connection || null;
+        timestamps = options?.timestamps || true;
+        primaryKey = options?.primaryKey || 'id';
+        keyType = options?.keyType || 'int';
+        incrementing = options?.incrementing || true;
+        with = options?.with || [];
+        casts = options?.casts || {};
+  
+        static CREATED_AT = options?.CREATED_AT || 'created_at';
+        static UPDATED_AT = options?.UPDATED_AT || 'updated_at';
+        static DELETED_AT = options?.DELETED_AT || 'deleted_at';
+      }
+    }
+
+    if ('relations' in options) {
+      for (const relation in options.relations) {
+        sutando.models[name].prototype[getRelationMethod(relation)] = options.relations[relation];
+      }
+    }
+
+    if ('scopes' in options) {
+      for (const scope in options.scopes) {
+        sutando.models[name].prototype[getScopeMethod(scope)] = options.scopes[scope];
+      }
+    }
+
+    return sutando.models[name];
   }
 }
 
