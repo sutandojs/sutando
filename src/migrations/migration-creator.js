@@ -24,6 +24,19 @@ class MigrationCreator {
     return filePath;
   }
 
+  async publish(dir, callback) {
+    const migrationFiles = await promisify(fs.readdir)(this.customStubPath);
+    await this.ensureDirectoryExists(dir);
+
+    for (const migrationFile of migrationFiles) {
+      const sourceFilePath = path.join(this.customStubPath, migrationFile);
+      const destinationFilePath = path.join(dir, migrationFile);
+
+      await promisify(fs.copyFile)(sourceFilePath, destinationFilePath);
+      callback && await callback(migrationFile, sourceFilePath, destinationFilePath);
+    }
+  }
+
   async ensureMigrationDoesntAlreadyExist(name, dir) {
     const migrationFiles = await promisify(fs.glob)(path.join(dir, '*.js'));
 
