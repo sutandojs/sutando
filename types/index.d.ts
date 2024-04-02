@@ -393,8 +393,7 @@ declare module 'sutando' {
     toString(): string;
     isDirty(attributes?: string | string[]): boolean;
     getDirty(): string[];
-    trashed(): boolean;
-    save(): Promise<boolean>;
+    save(options?: any): Promise<boolean>;
     update(attributes?: any, options?: any): Promise<boolean>;
     increment(column: string, amount?: number, extra?: any): Promise<boolean>;
     decrement(column: string, amount?: number, extra?: any): Promise<boolean>;
