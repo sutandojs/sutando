@@ -117,6 +117,35 @@ program
   });
 
 program
+  .command('migrate:publish <package>')
+  .description('Publish any migration files from packages.')
+  .action(async (package, opts) => {
+    if (!env.configPath) {
+      exit('Error: sutando config not found. Run `sutando init` first.');
+    }
+
+    const config = require(env.configPath);
+
+    try {
+      const packagePath = findModulePkg(package);
+
+      if (!packagePath) {
+        exit(`Error: package ${package} not found`);
+      }
+
+      const MigrationCreator = getSutandoModule('src/migrations/migration-creator');
+      const creator = new MigrationCreator(path.join(packagePath, 'migrations'));
+
+      console.log(color.green(`Publishing migrations:`));
+      const fileNames = await creator.publish(env.cwd + `/${config?.migrations?.path || 'migrations'}`, (fileName, oldPath, newPath) => {
+        console.log(newPath + ' ' + color.green(`DONE`));
+      });
+    } catch (err) {
+      exit(err);
+    }
+  });
+
+program
   .command('migrate:run')
   .description('Run all pending migrations.')
   .option('--step', 'Force the migrations to be run so they can be rolled back individually.')
