@@ -7,14 +7,14 @@ const color = require('colorette');
 const resolveFrom = require('resolve-from');
 const snakeCase = require('lodash/snakeCase');
 
-const { success, exit, twoColumnDetail, findUpConfig, findUpModulePath, TableGuesser, localModuleCheck, getMigrationPaths } = require('./utils');
+const { success, exit, twoColumnDetail, findUpConfig, findUpModulePath, findModulePkg, TableGuesser, localModuleCheck, getMigrationPaths } = require('./utils');
 const cliPkg = require('../package');
 
 const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
 
 const env = {
-  modulePath: resolveFrom.silent(process.cwd(), 'sutando') || findUpModulePath(process.cwd(), 'sutando'),
+  modulePath: findModulePkg('sutando') || resolveFrom.silent(process.cwd(), 'sutando') || findUpModulePath(process.cwd(), 'sutando'),
   cwd: process.cwd(),
   configPath: findUpConfig(process.cwd(), 'sutando.config', ['js', 'cjs'])
 }
@@ -23,7 +23,7 @@ let modulePackage = {};
 
 try {
   modulePackage = require(path.join(
-    path.dirname(path.dirname(env.modulePath)),
+    env.modulePath,
     'package.json'
   ));
 } catch (e) {
@@ -33,7 +33,7 @@ try {
 function getSutandoModule(modulePath) {
   localModuleCheck(env);
   return require(path.join(
-    path.dirname(path.dirname(env.modulePath)),
+    env.modulePath,
     modulePath
   ));
 }
@@ -65,7 +65,7 @@ program
     try {
       const stubPath = `./sutando.config.${type}`;
       const code = await readFile(
-        path.dirname(path.dirname(env.modulePath)) +
+        env.modulePath +
           '/src/stubs/sutando.config-' +
           type +
           '.stub'
@@ -292,7 +292,7 @@ program
       await promisify(fs.mkdir)(path.dirname(modelPath), { recursive: true });
 
       const stubPath = path.join(
-        path.dirname(path.dirname(env.modulePath)),
+        env.modulePath,
         'src/stubs/model-js.stub'
       );
       let stub = await readFile(stubPath, 'utf-8');
