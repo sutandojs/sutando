@@ -101,10 +101,10 @@ class QueryBuilder {
     let countResults;
 
     do {
-      const builder = this.connector.clone();
+      const builder = this.clone();
       const results = await builder.forPage(page, count).get();
   
-      countResults = results.count();
+      countResults = results.length;
   
       if (countResults == 0) {
         break;
@@ -123,7 +123,7 @@ class QueryBuilder {
   }
 
   async paginate(page = 1, perPage = 15) {
-    const query = this.connector.clone();
+    const query = this.clone();
 
     const total = await query.clearOrder().count('*');
 
@@ -179,15 +179,15 @@ class QueryBuilder {
   }
 
   async delete() {
-    return this.connector.delete();
+    return await this.connector.delete();
   }
 
   async insert(...args) {
-    return this.connector.insert(...args);
+    return await this.connector.insert(...args);
   }
 
   async update(...args) {
-    return this.connector.update(...args);
+    return await this.connector.update(...args);
   }
 
   destroy(...args) {
