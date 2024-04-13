@@ -1,17 +1,30 @@
+const Knex = require('knex');
 const QueryBuilder = require('./query-builder');
 
 class sutando {
   static manager = {};
   static connections = {};
+  static connectorFactory = null;
 
   static connection(connection = null) {
     return this.getConnection(connection);
   }
 
+  static setConnectorFactory(connectorFactory) {
+    this.connectorFactory = connectorFactory;
+  }
+
+  static getConnectorFactory() {
+    return this.connectorFactory || Knex;
+  }
+
   static getConnection(name = null) {
     name = name || 'default';
     if (this.manager[name] === undefined) {
-      const queryBuilder = QueryBuilder(this.connections[name]);
+      const queryBuilder = new QueryBuilder(
+        this.connections[name],
+        this.getConnectorFactory()
+      );
 
       this.manager[name] = queryBuilder;
     }

@@ -482,7 +482,7 @@ class Builder {
 
     const method = boolean === 'and' ? 'where' + type : 'orWhere' + type;
 
-    this[method](query);
+    this[method](query.connector);
 
     return this;
   }

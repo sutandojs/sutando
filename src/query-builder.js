@@ -1,100 +1,210 @@
-const Knex = require('knex');
-const Builder = require('knex/lib/query/querybuilder')
 const Paginator = require('./paginator');
 
-Builder.prototype._aggregate = async function (method, column, options = {}) {
-  this._statements.push({
-    grouping: 'columns',
-    type: column.isRawInstance ? 'aggregateRaw' : 'aggregate',
-    method,
-    value: column,
-    aggregateDistinct: options.distinct || false,
-    alias: 'aggregate',
-  });
-
-  const [{ aggregate }] = await this;
-  return Number(aggregate);
-};
-
-Knex.QueryBuilder.extend('beginTransaction', async function () {
-  return await this.transaction();
-});
-
-Knex.QueryBuilder.extend('find', async function (id, columns = ['*']) {
-  return await this.where('id', id).first(...columns);
-});
-
-Knex.QueryBuilder.extend('get', async function () {
-  return await this;
-});
-
-Knex.QueryBuilder.extend('exists', async function () {
-  return await this.first() !== null;
-});
-
-// Knex.QueryBuilder.extend('inRandomOrder', function () {
-//   this.orderByRaw('RANDOM()');
-//   return this;
-// });
-
-Knex.QueryBuilder.extend('skip', function (...args) {
-  return this.offset(...args);
-});
-
-Knex.QueryBuilder.extend('take', function (...args) {
-  return this.limit(...args);
-});
-
-Knex.QueryBuilder.extend('chunk', async function (count, callback) {
-  if (this._statements.filter(item => item.grouping === 'order').length === 0) {
-    throw new Error('You must specify an orderBy clause when using this function.');
+class QueryBuilder {
+  connector = null;
+  constructor(config, connector) {
+    this.connector = connector(config);
+    return this.asProxy();
   }
 
-  let page = 1;
-  let countResults;
+  asProxy() {
+    const handler = {
+      get: function (target, prop) {
+        if (typeof target[prop] !== 'undefined') {
+          return target[prop]
+        }
 
-  do {
-    const builder = this.clone();
-    const results = await builder.forPage(page, count).get();
+        if (['destroy', 'schema'].includes(prop)) {
+          return target.connector.schema;
+        }
 
-    countResults = results.count();
+        if ([
+          'select', 'from', 'where', 'orWhere', 'whereColumn', 'whereRaw',
+          'whereNot', 'orWhereNot', 'whereIn', 'orWhereIn', 'whereNotIn', 'orWhereNotIn', 'whereNull', 'orWhereNull', 'whereNotNull', 'orWhereNotNull', 'whereExists', 'orWhereExists',
+          'whereNotExists', 'orWhereNotExists', 'whereBetween', 'orWhereBetween', 'whereNotBetween', 'orWhereNotBetween',
+          'whereLike', 'orWhereLike', 'whereILike', 'orWhereILike', 
+          'whereJsonObject', 'whereJsonPath', 'whereJsonSupersetOf', 'whereJsonSubsetOf', 
+          'join', 'joinRaw', 'leftJoin', 'leftOuterJoin', 'rightJoin', 'rightOuterJoin', 'crossJoin', 
+          'transacting', 'groupBy', 'groupByRaw', 'returning',
+          'having', 'havingRaw', 'havingBetween', 
+          'limit', 'offset', 'orderBy', 'orderByRaw', // 'inRandomOrder',
+          'union', 'insert', 'forUpdate', 'forShare', 'distinct',
+          'clearOrder', 'clear', 'clearSelect', 'clearWhere', 'clearHaving', 'clearGroup',
+        ].includes(prop)) {
+          return (...args) => {
+            target.connector[prop](...args);
+            return target.asProxy()
+          }
+        }
 
-    if (countResults == 0) {
-      break;
-    }
+        return target.connector[prop];
+      },
+      set: function (target, prop, value) {
+        if (typeof target[prop] !== 'undefined') {
+          target[prop] = value;
+          return target;
+        }
 
-    const bool = await callback(results, page);
+        target.connector[prop] = value;
+        return target;
+      }
+    };
 
-    if (bool === false) {
-      return false;
-    }
-
-    page++;
-  } while (countResults === count);
-
-  return true;
-});
-
-Knex.QueryBuilder.extend('forPage', function (page = 1, perPage = 15) {
-  return this.offset((page - 1) * perPage).limit(perPage);
-});
-
-Knex.QueryBuilder.extend('paginate', async function (page = 1, perPage = 15) {
-  const query = this.clone();
-
-  const total = await query.clearOrder().count('*');
-
-  let results;
-  if (total > 0) {
-    const skip = (page - 1) * perPage;
-    this.take(perPage).skip(skip);
-
-    results = await this.get();
-  } else {
-    results = [];
+    return new Proxy(this, handler);
   }
 
-  return new Paginator(results, parseInt(total), perPage, page);
-});
+  async beginTransaction() {
+    return await this.connector.transaction();
+  }
 
-module.exports = Knex;
+  table(table) {
+    const c = this.connector.table(table);
+    return new QueryBuilder(null, () => c);
+  }
+
+  transaction(callback) {
+    if (callback) {
+      return this.connector.transaction((trx) => {
+        return callback(new QueryBuilder(null, () => trx))
+      });
+    }
+    
+    return callback;
+  }
+
+  async find(id, columns = ['*']) {
+    return await this.connector.where('id', id).first(...columns);
+  }
+
+  async get(columns = ['*']) {
+    return await this.connector;
+  }
+
+  async exists() {
+    return await this.connector.first() !== null;
+  }
+
+  skip(...args) {
+    return this.connector.offset(...args);
+  }
+
+  take(...args) {
+    return this.connector.limit(...args);
+  }
+
+  async chunk(count, callback) {
+    if (this.connector._statements.filter(item => item.grouping === 'order').length === 0) {
+      throw new Error('You must specify an orderBy clause when using this function.');
+    }
+
+    let page = 1;
+    let countResults;
+
+    do {
+      const builder = this.connector.clone();
+      const results = await builder.forPage(page, count).get();
+  
+      countResults = results.count();
+  
+      if (countResults == 0) {
+        break;
+      }
+  
+      const bool = await callback(results, page);
+  
+      if (bool === false) {
+        return false;
+      }
+  
+      page++;
+    } while (countResults === count);
+  
+    return true;
+  }
+
+  async paginate(page = 1, perPage = 15) {
+    const query = this.connector.clone();
+
+    const total = await query.clearOrder().count('*');
+
+    let results;
+    if (total > 0) {
+      const skip = (page - 1) * perPage;
+      this.take(perPage).skip(skip);
+
+      results = await this.get();
+    } else {
+      results = [];
+    }
+
+    return new Paginator(results, parseInt(total), perPage, page);
+  }
+
+  forPage(page = 1, perPage = 15) {
+    return this.offset((page - 1) * perPage).limit(perPage);
+  }
+
+  toSQL(...args) {
+    return this.connector.toSQL(...args);
+  }
+
+  async count(column) {
+    const [{ aggregate }] = await this.connector.count(column, { as: 'aggregate' });
+    return Number(aggregate);
+  }
+
+  async min(column) {
+    const [{ aggregate }] = await this.connector.min(column, { as: 'aggregate' });
+    return Number(aggregate);
+  }
+
+  async max(column) {
+    const [{ aggregate }] = await this.connector.max(column, { as: 'aggregate' });
+    return Number(aggregate);
+  }
+
+  async sum(column) {
+    const [{ aggregate }] = await this.connector.sum(column, { as: 'aggregate' });
+    return Number(aggregate);
+  }
+
+  async avg(column) {
+    const [{ aggregate }] = await this.connector.avg(column, { as: 'aggregate' });
+    return Number(aggregate);
+  }
+
+  clone() {
+    const c = this.connector.clone();
+    return new QueryBuilder(null, () => c);
+  }
+
+  async delete() {
+    return this.connector.delete();
+  }
+
+  async insert(...args) {
+    return this.connector.insert(...args);
+  }
+
+  async update(...args) {
+    return this.connector.update(...args);
+  }
+
+  destroy(...args) {
+    return this.connector.destroy(...args);
+  }
+
+  get _statements() {
+    return this.connector._statements;
+  }
+
+  get _single() {
+    return this.connector._single;
+  }
+
+  get from() {
+    return this.connector.from;
+  }
+}
+
+module.exports = QueryBuilder;
