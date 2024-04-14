@@ -9,6 +9,19 @@
   },
   "main": "sutando",
   "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "default": "./sutando.mjs",
+        "types": "./types/index.d.ts"
+      },
+      "require": {
+        "default": "./sutando.js",
+        "types": "./types/index.d.ts"
+      }
+    },
+    "./package.json": "./package.json"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/sutandojs/sutando.git"
