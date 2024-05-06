@@ -54,7 +54,8 @@ class QueryBuilder {
   }
 
   async beginTransaction() {
-    return await this.connector.transaction();
+    const trx = await this.connector.transaction();
+    return new QueryBuilder(null, () => trx);
   }
 
   table(table) {
