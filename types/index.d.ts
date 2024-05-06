@@ -525,6 +525,7 @@ declare module 'sutando' {
     groupBy: GroupByMethod<this>;
     groupByRaw: RawInterface<this>;
 
+    beginTransaction(): Promise<Trx>;
     transaction(callback: (trx: Trx) => Promise<any>): Promise<any>;
     destroy(): void;
 
