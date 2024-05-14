@@ -228,7 +228,9 @@ class Builder {
 
   async create(attributes = {}) {
     return await tap(this.newModelInstance(attributes), async instance => {
-      await instance.save();
+      await instance.save({
+        client: this.query
+      });
     });
   }
 
@@ -854,13 +856,17 @@ class Builder {
     }
 
     return tap(this.newModelInstance(merge(attributes, values)), async (instance) => {
-      await instance.save();
+      await instance.save({
+        client: this.query
+      });
     });
   }
 
   async updateOrCreate(attributes, values = {}) {
     return await tap(this.firstOrNew(attributes), async (instance) => {
-      await instance.fill(values).save();
+      await instance.fill(values).save({
+        client: this.query
+      });
     });
   }
 
