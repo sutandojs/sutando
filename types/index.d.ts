@@ -296,7 +296,7 @@ declare module 'sutando' {
 
   type SnakeToCamelCase<S extends string> =
     S extends `${infer T}_${infer U}` ? `${T}${Capitalize<SnakeToCamelCase<U>>}` : S;
-  
+
   type ReturnTypeOfMethod<T, K extends keyof T> = T[K] extends (...args: any[]) => infer R ? R : never;
 
   type Hook = 'creating' | 'created' | 'updating' | 'updated' | 'saving' | 'saved' | 'deleting' | 'deleted' | 'restoring' | 'restored' | 'trashed' | 'forceDeleted';
@@ -540,6 +540,8 @@ declare module 'sutando' {
     avg(column: string): Promise<number>;
     skip(count: number): this;
     take(count: number): this;
+    limit(count: number): this;
+    offset(count: number): this;
     chunk(count: number, callback: (rows: M[] | Collection<M>) => any): Promise<boolean>;
     forPage(page: number, perPage?: number): this;
     paginate(page: number, perPage?: number): Promise<Paginator<M>>;
@@ -659,7 +661,7 @@ declare module 'sutando' {
     toJson(): string;
     toString(): string;
   }
-  
+
   export class Paginator<T> {
     constructor(items: T[], total: number, perPage: number, currentPage?: null | number, options?: any);
     setItems(items: T[] | Collection<T>): void;
@@ -700,7 +702,7 @@ declare module 'sutando' {
   }
   export class RelationNotFoundError extends Error {}
   export class InvalidArgumentError extends Error {}
-  
+
   export function HasUniqueIds<T extends new (...args: any[]) => Model>(Base: T): T & {
     new (...args: ConstructorParameters<T>): {
       useUniqueIds: boolean;
