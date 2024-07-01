@@ -12,12 +12,12 @@
   "exports": {
     ".": {
       "import": {
-        "default": "./sutando.mjs",
-        "types": "./types/index.d.ts"
+        "types": "./types/index.d.ts",
+        "default": "./sutando.mjs"
       },
       "require": {
-        "default": "./sutando.js",
-        "types": "./types/index.d.ts"
+        "types": "./types/index.d.ts",
+        "default": "./sutando.js"
       }
     },
     "./package.json": "./package.json"
