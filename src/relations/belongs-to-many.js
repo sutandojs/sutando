@@ -300,6 +300,27 @@ class BelongsToMany extends compose(
   //     this.touch();
   //   }
   // }
+
+  getRelationExistenceQuery(query, parentQuery, columns = ['*']) {
+    if (parentQuery.getQuery()._single.table == query.getQuery()._single.table) {
+      return this.getRelationExistenceQueryForSelfJoin(query, parentQuery, columns);
+    }
+
+    this.performJoin(query);
+
+    return super.getRelationExistenceQuery(query, parentQuery, columns);
+  }
+
+  getRelationExistenceQueryForSelfJoin(query, parentQuery, columns = ['*']) {
+    const hash = this.getRelationCountHash();
+    query.select(columns).from(this.related.getTable() + ' as ' + hash);
+
+    this.related.setTable(hash);
+
+    this.performJoin(query);
+
+    return super.getRelationExistenceQuery(query, parentQuery, columns);
+  }
 }
 
 module.exports = BelongsToMany;

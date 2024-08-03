@@ -5,6 +5,10 @@ declare module 'sutando' {
   type AnyQueryBuilder = QueryBuilder<any, any>;
   export type SchemaBuilder = Knex.SchemaBuilder;
   type Raw = Knex.Raw;
+  type Trx = AnyQueryBuilder & {
+    commit(): Promise<void>;
+    rollback(): Promise<void>;
+  };
   type Operator = string;
   type ColumnRef = string | Raw;
   type Expression<T> = T | Raw | AnyQueryBuilder;
@@ -218,8 +222,8 @@ declare module 'sutando' {
     static connection(connection?: string | null): AnyQueryBuilder;
     static getConnection(connection?: string | null): AnyQueryBuilder;
     static addConnection(config: object, name?: string): void;
-    static beginTransaction(name?: string | null): Promise<AnyQueryBuilder>;
-    static transaction(callback: void, name?: string | null): any;
+    static beginTransaction(name?: string | null): Promise<Trx>;
+    static transaction(callback: (trx: Trx) => Promise<any>, name?: string | null): any;
     static schema(name?: string | null): SchemaBuilder;
     static table(table: string, connection?: string): QueryBuilder<any>;
     static destroyAll(): Promise<void>;
@@ -292,7 +296,7 @@ declare module 'sutando' {
 
   type SnakeToCamelCase<S extends string> =
     S extends `${infer T}_${infer U}` ? `${T}${Capitalize<SnakeToCamelCase<U>>}` : S;
-  
+
   type ReturnTypeOfMethod<T, K extends keyof T> = T[K] extends (...args: any[]) => infer R ? R : never;
 
   type Hook = 'creating' | 'created' | 'updating' | 'updated' | 'saving' | 'saved' | 'deleting' | 'deleted' | 'restoring' | 'restored' | 'trashed' | 'forceDeleted';
@@ -521,9 +525,11 @@ declare module 'sutando' {
     groupBy: GroupByMethod<this>;
     groupByRaw: RawInterface<this>;
 
-    transaction(callback: (trx: AnyQueryBuilder) => Promise<any>): Promise<any>;
+    beginTransaction(): Promise<Trx>;
+    transaction(callback: (trx: Trx) => Promise<any>): Promise<any>;
     destroy(): void;
 
+    raw(sql: string, bindings?: any[]): Raw;
     get(columns?: string[]): Promise<any[] | Collection<M>>;
     find(key: string | number, columns?: string[]): any;
     exists(): Promise<boolean>;
@@ -534,6 +540,8 @@ declare module 'sutando' {
     avg(column: string): Promise<number>;
     skip(count: number): this;
     take(count: number): this;
+    limit(count: number): this;
+    offset(count: number): this;
     chunk(count: number, callback: (rows: M[] | Collection<M>) => any): Promise<boolean>;
     forPage(page: number, perPage?: number): this;
     paginate(page: number, perPage?: number): Promise<Paginator<M>>;
@@ -653,7 +661,7 @@ declare module 'sutando' {
     toJson(): string;
     toString(): string;
   }
-  
+
   export class Paginator<T> {
     constructor(items: T[], total: number, perPage: number, currentPage?: null | number, options?: any);
     setItems(items: T[] | Collection<T>): void;
@@ -694,7 +702,7 @@ declare module 'sutando' {
   }
   export class RelationNotFoundError extends Error {}
   export class InvalidArgumentError extends Error {}
-  
+
   export function HasUniqueIds<T extends new (...args: any[]) => Model>(Base: T): T & {
     new (...args: ConstructorParameters<T>): {
       useUniqueIds: boolean;
@@ -733,4 +741,7 @@ declare module 'sutando' {
     up(schema: SchemaBuilder, connection?: AnyQueryBuilder): Promise<any>;
     down(schema: SchemaBuilder, connection?: AnyQueryBuilder): Promise<any>;
   }
+
+  export function getRelationMethod(name: string): string;
+  export function getScopeMethod(name: string): string;
 }
