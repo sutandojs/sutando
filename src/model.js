@@ -5,6 +5,7 @@ const collect = require('collect.js');
 const pluralize = require('pluralize');
 const Builder = require('./builder');
 const Collection = require('./collection');
+const sutando = require('./sutando');
 const HasAttributes = require('./concerns/has-attributes');
 const HasRelations = require('./concerns/has-relations');
 const HasTimestamps = require('./concerns/has-timestamps');
@@ -43,6 +44,7 @@ class Model extends BaseModel {
   static globalScopes = {};
   static pluginInitializers = {};
   static _booted = {};
+  static resolver = null;
 
   static query(trx = null) {
     const instance = new this();
@@ -97,6 +99,10 @@ class Model extends BaseModel {
 
   static booted() {
     
+  }
+
+  static setConnectionResolver(resolver) {
+    this.resolver = resolver;
   }
 
   initialize() {
@@ -192,7 +198,10 @@ class Model extends BaseModel {
   }
 
   getConnection() {
-    const sutando = require('./sutando');
+    if (this.constructor.resolver) {
+      return this.constructor.resolver.getConnection(this.connection);
+    }
+
     return sutando.connection(this.connection);
   }
 

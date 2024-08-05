@@ -1,15 +1,28 @@
 const Knex = require('knex');
 const QueryBuilder = require('./query-builder');
-const { getRelationMethod, getScopeMethod } = require('./utils');
+const { getRelationMethod, getScopeMethod, compose, getAttrMethod } = require('./utils');
+const Attribute = require('./casts/attribute');
 
 class sutando {
-  static manager = {};
-  static connections = {};
-  static models = {};
   static connectorFactory = null;
+  static instance = null;
+
+  constructor() {
+    this.manager = {};
+    this.connections = {};
+    this.models = {};
+  }
+
+  static getInstance() {
+    if (this.instance === null) {
+      this.instance = new sutando();
+    }
+
+    return this.instance;
+  }
 
   static connection(connection = null) {
-    return this.getConnection(connection);
+    return this.getInstance().getConnection(connection);
   }
 
   static setConnectorFactory(connectorFactory) {
@@ -20,12 +33,44 @@ class sutando {
     return this.connectorFactory || Knex;
   }
 
-  static getConnection(name = null) {
+  static addConnection(config, name = 'default') {
+    return this.getInstance().addConnection(config, name);
+  }
+
+  static beginTransaction(connection = null) {
+    return this.getInstance().beginTransaction(connection);
+  }
+
+  static transaction(callback, connection = null) {
+    return this.getInstance().transaction(callback, connection);
+  }
+
+  static table(name, connection = null) {
+    return this.getInstance().table(name, connection);
+  }
+
+  static schema(connection = null) {
+    return this.getInstance().schema(connection);
+  }
+
+  static async destroyAll() {
+    await this.getInstance().destroyAll();
+  }
+
+  static createModel(name, options) {
+    return this.getInstance().createModel(name, options);
+  }
+
+  connection(connection = null) {
+    return this.getConnection(connection);
+  }
+
+  getConnection(name = null) {
     name = name || 'default';
     if (this.manager[name] === undefined) {
       const queryBuilder = new QueryBuilder(
         this.connections[name],
-        this.getConnectorFactory()
+        this.constructor.getConnectorFactory()
       );
 
       this.manager[name] = queryBuilder;
@@ -34,7 +79,7 @@ class sutando {
     return this.manager[name];
   }
 
-  static addConnection(config, name = 'default') {
+  addConnection(config, name = 'default') {
     this.connections[name] = {
       ...config,
       connection: {
@@ -50,69 +95,79 @@ class sutando {
     };
   }
 
-  static beginTransaction(connection = null) {
+  beginTransaction(connection = null) {
     return this.connection(connection).transaction();
   }
 
-  static transaction(callback, connection = null) {
+  transaction(callback, connection = null) {
     return this.connection(connection).transaction(callback);
   }
 
-  static commit(connection = null) {
-
-  }
-
-  static rollback(connection = null) {
-
-  }
-
-  static table(name, connection = null) {
+  table(name, connection = null) {
     return this.connection(connection).table(name);
   }
 
-  static schema(connection = null) {
+  schema(connection = null) {
     return this.connection(connection).schema;
   }
 
-  static async destroyAll() {
+  async destroyAll() {
     await Promise.all(Object.values(this.manager).map((connection) => {
       return connection?.destroy();
     }));
   }
 
-  static createModel(name, options) {
+  createModel(name, options = {}) {
     const Model = require('./model');
-    sutando.models = {
-      ...sutando.models,
-      [name]: class extends Model {
-        table = options?.table || null;
-        connection = options?.connection || null;
-        timestamps = options?.timestamps || true;
-        primaryKey = options?.primaryKey || 'id';
-        keyType = options?.keyType || 'int';
-        incrementing = options?.incrementing || true;
-        with = options?.with || [];
-        casts = options?.casts || {};
+    let BaseModel = Model;
+    if ('plugins' in options) {
+      BaseModel = compose(BaseModel, ...options.plugins);
+    }
+
+    this.models = {
+      ...this.models,
+      [name]: class extends BaseModel {
+        table = options?.table ?? null;
+        connection = options?.connection ?? null;
+        timestamps = options?.timestamps ?? true;
+        primaryKey = options?.primaryKey ?? 'id';
+        keyType = options?.keyType ?? 'int';
+        incrementing = options?.incrementing ?? true;
+        with = options?.with ?? [];
+        casts = options?.casts ?? {};
   
-        static CREATED_AT = options?.CREATED_AT || 'created_at';
-        static UPDATED_AT = options?.UPDATED_AT || 'updated_at';
-        static DELETED_AT = options?.DELETED_AT || 'deleted_at';
+        static CREATED_AT = options?.CREATED_AT ?? 'created_at';
+        static UPDATED_AT = options?.UPDATED_AT ?? 'updated_at';
+        static DELETED_AT = options?.DELETED_AT ?? 'deleted_at';
       }
     }
 
+    if ('attributes' in options) {
+      for (const attribute in options.attributes) {
+        if (options.attributes[attribute] instanceof Attribute === false) {
+          throw new Error(`Attribute must be an instance of "Attribute"`);
+        }
+
+        this.models[name].prototype[getAttrMethod(attribute)] = () => options.attributes[attribute];
+      }
+    }
+    
     if ('relations' in options) {
       for (const relation in options.relations) {
-        sutando.models[name].prototype[getRelationMethod(relation)] = options.relations[relation];
+        this.models[name].prototype[getRelationMethod(relation)] = function () {
+          return options.relations[relation](this);
+        };
       }
     }
 
     if ('scopes' in options) {
       for (const scope in options.scopes) {
-        sutando.models[name].prototype[getScopeMethod(scope)] = options.scopes[scope];
+        this.models[name].prototype[getScopeMethod(scope)] = options.scopes[scope];
       }
     }
 
-    return sutando.models[name];
+    this.models[name].setConnectionResolver(this);
+    return this.models[name];
   }
 }
 

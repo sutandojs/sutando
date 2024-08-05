@@ -1,5 +1,6 @@
 const unset = require('lodash/unset');
 const filter = require('lodash/filter');
+const kebabCase = require('lodash/kebabCase');
 const { sutando, Model, Collection, Builder, Paginator, compose, SoftDeletes, Attribute, HasUniqueIds, CastsAttributes, ModelNotFoundError } = require('../src');
 const config = require(process.env.SUTANDO_CONFIG || './config');
 const dayjs = require('dayjs');
@@ -49,27 +50,19 @@ describe('Model', () => {
     }
   }
 
-  // class Post extends Model {
-  //   relationAuthor() {
-  //     return this.belongsTo(User);
-  //   }
-
-  //   relationTags() {
-  //     return this.belongsToMany(Tag, 'post_tag');
-  //   }
-
-  //   relationThumbnail() {
-  //     return this.belongsTo(Thumbnail, 'thumbnail_id');
-  //   }
-  // }
-
-  const Post = sutando.model('Post', {
-    relations: {
-      author: () => this.belongsTo(User),
-      tags: () => this.belongsToMany(Tag, 'post_tag'),
-      thumbnail: () => this.belongsTo(Thumbnail, 'thumbnail_id'),
+  class Post extends Model {
+    relationAuthor() {
+      return this.belongsTo(User);
     }
-  });
+
+    relationTags() {
+      return this.belongsToMany(Tag, 'post_tag');
+    }
+
+    relationThumbnail() {
+      return this.belongsTo(Thumbnail, 'thumbnail_id');
+    }
+  }
 
   class Tag extends Model {
     relationPosts() {
@@ -80,23 +73,50 @@ describe('Model', () => {
   class Thumbnail extends Model {}
   class Media extends Model {}
 
+  const manager = new sutando;
+
+  manager.createModel('User', {
+    plugins: [SomePlugin],
+    relations: {
+      post: (model) => model.hasMany(manager.models.Post),
+    }
+  });
+
+  manager.createModel('Post', {
+    relations: {
+      author: (model) => model.belongsTo(manager.models.User),
+      tags: (model) => model.belongsToMany(Tag, 'post_tag'),
+      thumbnail: (model) => model.belongsTo(Thumbnail, 'thumbnail_id'),
+    }
+  });
+
   it('return the table name of the plural model name', () => {
     const user = new User;
     const media = new Media;
     expect(user.getTable()).toBe('users');
     expect(media.getTable()).toBe('media');
+
+    const anotherUser = new manager.models.User;
+    expect(anotherUser.getTable()).toBe('users');
   });
 
   describe('#compose', () => {
     it('should return a Model instance', () => {
       const user = new User;
       expect(user).toBeInstanceOf(Model);
+
+      const anotherUser = new manager.models.User;
+      expect(anotherUser).toBeInstanceOf(Model);
     });
 
     it('has mixin\'s attributes and methods', () => {
       const user = new User;
       expect(user.pluginAttribtue).toBe('plugin');
       expect(user.pluginMethod()).toBe('plugin');
+
+      const anotherUser = new manager.models.User;
+      expect(anotherUser.pluginAttribtue).toBe('plugin');
+      expect(anotherUser.pluginMethod()).toBe('plugin');
     })
   })
 
@@ -333,69 +353,70 @@ describe('Integration test', () => {
         }
       }
 
-      // class Post extends Base {
-      //   scopeIdOf(query, id) {
-      //     return query.where('id', id);
-      //   }
+      class Post extends Base {
+        scopeIdOf(query, id) {
+          return query.where('id', id);
+        }
 
-      //   scopePublish(query) {
-      //     return query.where('status', 1);
-      //   }
+        scopePublish(query) {
+          return query.where('status', 1);
+        }
 
-      //   relationAuthor() {
-      //     return this.belongsTo(User);
-      //   }
+        relationAuthor() {
+          return this.belongsTo(User);
+        }
 
-      //   relationDefaultAuthor() {
-      //     return this.belongsTo(User).withDefault({
-      //       name: 'Default Author'
-      //     });
-      //   }
+        relationDefaultAuthor() {
+          return this.belongsTo(User).withDefault({
+            name: 'Default Author'
+          });
+        }
 
-      //   relationDefaultPostAuthor() {
-      //     return this.belongsTo(User).withDefault((user, post) => {
-      //       user.name = post.name + ' - Default Author';
-      //     });
-      //   }
+        relationDefaultPostAuthor() {
+          return this.belongsTo(User).withDefault((user, post) => {
+            user.name = post.name + ' - Default Author';
+          });
+        }
 
-      //   relationThumbnail() {
-      //     return this.belongsTo(Media, 'thumbnail_id');
-      //   }
+        relationThumbnail() {
+          return this.belongsTo(Media, 'thumbnail_id');
+        }
 
-      //   relationMedia() {
-      //     return this.belongsToMany(Media);
-      //   }
+        relationMedia() {
+          return this.belongsToMany(Media);
+        }
 
-      //   relationTags() {
-      //     return this.belongsToMany(Tag);
-      //   }
+        relationTags() {
+          return this.belongsToMany(Tag);
+        }
 
-      //   relationComments() {
-      //     return this.hasMany(Comment);
-      //   }
-      // }
+        relationComments() {
+          return this.hasMany(Comment);
+        }
+      }
 
-      const Post = sutando.model('Post', {
+      sutando.createModel('Post', {
         connection: config.client,
+        attributes: {
+          slug: Attribute.make({
+            get: (value, attributes) => kebabCase(attributes.name)
+          })
+        },
         scopes: {
-          idOf: function (query, id) {
-            return query.where('id', id);
-          },
-          publish: function (query) {
-            return query.where('status', 1);
-          }
+          idOf: (query, id) => query.where('id', id),
+          publish: (query) => query.where('status', 1)
         },
         relations: {
-          author: function() { return this.belongsTo(User)},
-          default_author: function() { return this.belongsTo(User).withDefault({
+          author: (model) => model.belongsTo(User),
+          default_author: (model) => model.belongsTo(User).withDefault({
             name: 'Default Author'
-          })},
-          default_post_author: function() { return this.belongsTo(User).withDefault((user, post) => {
+          }),
+          default_post_author: (model) => model.belongsTo(User).withDefault((user, post) => {
             user.name = post.name + ' - Default Author';
-          })},
-          thumbnail: function() { return this.belongsTo(Media, 'thumbnail_id')},
-          media: function() { return this.belongsToMany(Media)},
-          tags: function() { return this.belongsToMany(Tag)},
+          }),
+          thumbnail: (model) => model.belongsTo(Media, 'thumbnail_id'),
+          media: (model) => model.belongsToMany(Media),
+          tags: (model) => model.belongsToMany(Tag),
         }
       });
 
@@ -1425,6 +1446,36 @@ describe('Integration test', () => {
             expect(post.attributes.text_to_collection).toBe('[{"name":"bar1"},{"name":"foo2"}]');
             post.custom_cast = { a: 'bar', b: 'foo' };
             expect(post.attributes.custom_cast).toBe('{"a":"bar","b":"foo"}');
+          });
+        });
+
+        describe('#createModel', () => {
+          it('scopes/attributes/relations', async () => {
+            const { Post } = sutando.instance.models;
+            let posts = await Post.query().idOf(3).get();
+            expect(posts.modelKeys()).toEqual([3]);
+
+            posts = await Post.query().idOf(3).orWhere(q => {
+              q.idOf(4);
+            }).get();
+            expect(posts.modelKeys()).toEqual([3, 4]);
+
+            let post = await Post.query().with('default_author').find(4);
+            let xpost = post.toData();
+            unset(xpost, 'created_at');
+            unset(xpost, 'updated_at');
+
+            expect(post.default_author).toBeInstanceOf(User);
+            expect(xpost).toEqual({
+              id: 4,
+              user_id: 30,
+              name: 'This is a new Title 4!',
+              content: 'Lorem ipsum Anim sed eu sint aute.',
+              default_author: {
+                name: 'Default Author'
+              }
+            });
+            expect(post.slug).toBe('this-is-a-new-title-4');
           });
         });
       });
