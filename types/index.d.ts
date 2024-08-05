@@ -216,10 +216,11 @@ declare module 'sutando' {
   interface OrderByRawMethod<QB extends AnyQueryBuilder> extends RawInterface<QB> {}
 
   export class sutando {
-    static connections: {
-      [key: string]: AnyQueryBuilder
-    };
+    static connectorFactory: any | null;
+    static instance: sutando | null;
     static connection(connection?: string | null): AnyQueryBuilder;
+    static setConnectorFactory(connectorFactory: any): void;
+    static getConnectorFactory(): any;
     static getConnection(connection?: string | null): AnyQueryBuilder;
     static addConnection(config: object, name?: string): void;
     static beginTransaction(name?: string | null): Promise<Trx>;
@@ -227,6 +228,26 @@ declare module 'sutando' {
     static schema(name?: string | null): SchemaBuilder;
     static table(table: string, connection?: string): QueryBuilder<any>;
     static destroyAll(): Promise<void>;
+    static createModel(name: string, options: any): typeof Model;
+    manager: {
+      [key: string]: AnyQueryBuilder
+    };
+    connections: {
+      [key: string]: any
+    };
+    models: {
+      [key: string]: typeof Model;
+    };
+    connection(connection?: string | null): AnyQueryBuilder;
+    setConnectorFactory(connectorFactory: any): void;
+    getConnectorFactory(): any;
+    addConnection(config: object, name?: string): void;
+    beginTransaction(name?: string | null): Promise<Trx>;
+    transaction(callback: (trx: Trx) => Promise<any>, name?: string | null): any;
+    schema(name?: string | null): SchemaBuilder;
+    table(table: string, connection?: string): QueryBuilder<any>;
+    destroyAll(): Promise<void>;
+    createModel(name: string, options: any): typeof Model;
   }
 
   export class Attribute {

@@ -44,6 +44,7 @@ class Model extends BaseModel {
   static globalScopes = {};
   static pluginInitializers = {};
   static _booted = {};
+  static resolver = null;
 
   static query(trx = null) {
     const instance = new this();
@@ -98,6 +99,10 @@ class Model extends BaseModel {
 
   static booted() {
     
+  }
+
+  static setConnectionResolver(resolver) {
+    this.resolver = resolver;
   }
 
   initialize() {
@@ -193,6 +198,10 @@ class Model extends BaseModel {
   }
 
   getConnection() {
+    if (this.constructor.resolver) {
+      return this.constructor.resolver.getConnection(this.connection);
+    }
+
     return sutando.connection(this.connection);
   }
 
