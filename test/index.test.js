@@ -722,10 +722,22 @@ describe('Integration test', () => {
 
       describe('raw', () => {
         it('should execute raw SQL query and return correct result', async () => {
-          const user = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
-          expect(user).toEqual([{
-            id: 2
-          }]);
+          if (process.env.DB === 'sqlite') {
+            const user = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
+            expect(user).toEqual([{
+              id: 2
+            }]);
+          } else if (process.env.DB === 'mysql') {
+            const res = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
+            expect(res[0]).toEqual([{
+              id: 2
+            }]);
+          } else if (process.env.DB === 'postgres') {
+            const res = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
+            expect(res.rows).toEqual([{
+              id: 2
+            }]);
+          }
         });
       });
 
