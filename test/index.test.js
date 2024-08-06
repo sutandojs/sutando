@@ -1905,14 +1905,14 @@ describe('Integration test', () => {
               }
             };
           });
-          const posts = await Post.query().paginate(1, 3);
+          const posts = await Tag.query().paginate(1, 3);
           expect(posts.toData()).toEqual({
-            data: [2, 3, 4],
+            data: [1, 2, 3],
             meta: {
-              total: 9,
+              total: 4,
               perPage: 3,
               currentPage: 1,
-              lastPage: 3,
+              lastPage: 2,
               from: 1,
               to: 3,
             }
