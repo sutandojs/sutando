@@ -718,7 +718,16 @@ describe('Integration test', () => {
 
       afterAll(() => {
         connection.destroy();
-      })
+      });
+
+      describe('raw', () => {
+        it('should execute raw SQL query and return correct result', async () => {
+          const user = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
+          expect(user).toEqual([{
+            id: 2
+          }]);
+        });
+      });
 
       describe('Model', () => {
         it('should return a same instance', () => {
