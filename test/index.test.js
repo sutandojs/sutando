@@ -1891,7 +1891,34 @@ describe('Integration test', () => {
       });
       
       describe('Paginator', () => {
-        
+        it('should return data in a custom format', async () => {
+          Paginator.setFormatter((paginator) => {
+            return {
+              data: paginator.items().map(item => item.id).all(),
+              meta: {
+                total: paginator.total(),
+                perPage: paginator.perPage(),
+                currentPage: paginator.currentPage(),
+                lastPage: paginator.lastPage(),
+                from: paginator.firstItem(),
+                to: paginator.lastItem(),
+              }
+            };
+          });
+          const posts = await Tag.query().paginate(1, 3);
+          expect(posts.toData()).toEqual({
+            data: [1, 2, 3],
+            meta: {
+              total: 4,
+              perPage: 3,
+              currentPage: 1,
+              lastPage: 2,
+              from: 1,
+              to: 3,
+            }
+          });
+          Paginator.setFormatter(null);
+        })
       });
     });
   })

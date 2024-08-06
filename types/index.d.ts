@@ -565,7 +565,7 @@ declare module 'sutando' {
     offset(count: number): this;
     chunk(count: number, callback: (rows: M[] | Collection<M>) => any): Promise<boolean>;
     forPage(page: number, perPage?: number): this;
-    paginate(page: number, perPage?: number): Promise<Paginator<M>>;
+    paginate<F = { current_page: number, data: any[], per_page: number, total: number, last_page: number, count: number, }>(page: number, perPage?: number): Promise<Paginator<M, F>>;
   }
 
   type WithRelationType = {
@@ -646,7 +646,7 @@ declare module 'sutando' {
     destroy(ids: string | number | string[] | number[] | Collection<any>): Promise<number>;
     get(columns?: string[]): Promise<Collection<M>>;
     all(columns?: string[]): Promise<Collection<M>>;
-    paginate(page?: number, perPage?: number): Promise<Paginator<M>>;
+    paginate<F = { current_page: number, data: any[], per_page: number, total: number, last_page: number, count: number, }>(page?: number, perPage?: number): Promise<Paginator<M, F>>;
     [value: string]: any;
   }
 
@@ -683,34 +683,31 @@ declare module 'sutando' {
     toString(): string;
   }
 
-  export class Paginator<T> {
+  export class Paginator<T, K = {
+    current_page: number,
+    data: any[],
+    per_page: number,
+    total: number,
+    last_page: number,
+    count: number,
+  }> {
+    static formatter: (paginator: Paginator<any>) => any | null;
+    static setFormatter(formatter: (paginator: Paginator<any>) => any | null): void;
     constructor(items: T[], total: number, perPage: number, currentPage?: null | number, options?: any);
     setItems(items: T[] | Collection<T>): void;
     hasMorePages(): boolean;
     get(index: number): T;
     count(): number;
-    items: T[];
+    items(): Collection<T>;
     map<U>(callback: (value: T, index: number, array: T[]) => U): Collection<U>;
     currentPage(): number;
     perPage(): number;
     lastPage(): number;
+    firstItem(): number | null;
+    lastItem(): number | null;
     total(): number;
-    toData(): {
-      current_page: number,
-      data: any[],
-      per_page: number,
-      total: number,
-      last_page: number,
-      count: number,
-    };
-    toJSON(): {
-      current_page: number,
-      data: any[],
-      per_page: number,
-      total: number,
-      last_page: number,
-      count: number,
-    };
+    toData<U = K>(): U;
+    toJSON<U = K>(): U;
     toJson(): string;
     [Symbol.iterator](): { next: () => { value: T; done: boolean } };
   }
