@@ -11,6 +11,7 @@ declare module 'sutando' {
   };
   type Operator = string;
   type ColumnRef = string | Raw;
+  type TableRef<QB extends AnyQueryBuilder> = ColumnRef | AnyQueryBuilder | CallbackVoid<QB>;
   type Expression<T> = T | Raw | AnyQueryBuilder;
   type FieldExpression = string;
   type NonFunctionPropertyNames<T> = { [K in keyof T]: T[K] extends Function ? never : K }[keyof T];
@@ -193,6 +194,16 @@ declare module 'sutando' {
       wrap?: boolean
     ): QB;
   }
+
+  interface JoinMethod<QB extends AnyQueryBuilder> {
+    (table: TableRef<QB>, leftCol: ColumnRef, op: Operator, rightCol: ColumnRef): QB;
+    (table: TableRef<QB>, leftCol: ColumnRef, rightCol: ColumnRef): QB;
+    (table: TableRef<QB>, cb: CallbackVoid<Knex.JoinClause>): QB;
+    (table: TableRef<QB>, raw: Raw): QB;
+    (raw: Raw): QB;
+  }
+
+  interface JoinRawMethod<QB extends AnyQueryBuilder> extends RawInterface<QB> {}
 
   interface GroupByMethod<QB extends AnyQueryBuilder> {
     (...columns: ColumnRef[]): QB;
@@ -540,6 +551,17 @@ declare module 'sutando' {
     unionAll: UnionMethod<this>;
     intersect: SetOperationsMethod<this>;
 
+    join: JoinMethod<this>;
+    joinRaw: JoinRawMethod<this>;
+    innerJoin: JoinMethod<this>;
+    leftJoin: JoinMethod<this>;
+    leftOuterJoin: JoinMethod<this>;
+    rightJoin: JoinMethod<this>;
+    rightOuterJoin: JoinMethod<this>;
+    outerJoin: JoinMethod<this>;
+    fullOuterJoin: JoinMethod<this>;
+    crossJoin: JoinMethod<this>;
+
     orderBy: OrderByMethod<this>;
     orderByRaw: OrderByRawMethod<this>;
 
@@ -552,7 +574,8 @@ declare module 'sutando' {
 
     raw(sql: string, bindings?: any[]): Raw;
     get(columns?: string[]): Promise<any[] | Collection<M>>;
-    find(key: string | number, columns?: string[]): any;
+    find(key: string | number, columns?: string[]): Promise<M>;
+    update(attributes: any): Promise<M>;
     exists(): Promise<boolean>;
     count(column?: string): Promise<number>;
     min(column: string): Promise<number>;
@@ -613,7 +636,7 @@ declare module 'sutando' {
     whereRelation(relation: string, column: string, operator?: any, value?: any): this;
     hasNested(relation: string, operator?: any, count?: number, boolean?: any, callback?: (builder: Builder<any>) => void | null): this;
     canUseExistsForExistenceCheck(operator: string, count: number): boolean;
-    addHasWhere(hasQuery, relation, operator, count, boolean): this;
+    addHasWhere(hasQuery: Builder<any>, relation: string, operator?: string, count?: number, boolean?: string): this;
     withAggregate(relations: string | string[] | object, column: string, action?: string | null): this;
     toSql(): object;
     withCount(...relations: WithRelationType[]): this;
