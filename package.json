@@ -1,6 +1,6 @@
 {
   "name": "sutando",
-  "version": "1.5.4",
+  "version": "1.6.0",
   "packageManager": "pnpm@7.1.0",
   "description": "A modern Node.js ORM. Makes it enjoyable to interact with your database. Support Mysql, MSSql, MariaDB, Sqlite.",
   "homepage": "https://sutando.org/",
@@ -77,7 +77,8 @@
     "postgresql",
     "postgres",
     "pg",
-    "mssql"
+    "mssql",
+    "active record"
   ],
   "author": "Kidd Yu",
   "readmeFilename": "README.md",
