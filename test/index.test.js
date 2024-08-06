@@ -1905,16 +1905,16 @@ describe('Integration test', () => {
               }
             };
           });
-          const posts = await Post.query().paginate(2, 3);
+          const posts = await Post.query().paginate(1, 3);
           expect(posts.toData()).toEqual({
-            data: [6, 7, 9],
+            data: [2, 3, 4],
             meta: {
               total: 9,
               perPage: 3,
-              currentPage: 2,
+              currentPage: 1,
               lastPage: 3,
-              from: 4,
-              to: 6,
+              from: 1,
+              to: 3,
             }
           });
           Paginator.setFormatter(null);
