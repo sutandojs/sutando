@@ -1,11 +1,21 @@
 const Collection = require('./collection');
 
 class Paginator {
+  static formatter = null;
+
   _items;
   _total;
   _perPage;
   _lastPage;
-  _currentPage
+  _currentPage;
+
+  static setFormatter(formatter) {
+    if (typeof formatter !== 'function' && formatter !== null && formatter !== undefined) {
+      throw new Error('Paginator formatter must be a function or null');
+    }
+
+    this.formatter = formatter;
+  }
 
   constructor(items, total, perPage, currentPage = null, options = {}) {
     this.options = options;
@@ -28,6 +38,14 @@ class Paginator {
     this.hasMore = this._items.count() > this._perPage;
 
     this._items = this._items.slice(0, this._perPage);
+  }
+
+  firstItem() {
+    return this.count() > 0 ? (this._currentPage - 1) * this._perPage + 1 : null;
+  }
+
+  lastItem() {
+    return this.count() > 0 ? this.firstItem() + this.count() - 1 : null;
   }
 
   hasMorePages() {
@@ -54,6 +72,10 @@ class Paginator {
     return this._currentPage;
   }
 
+  onFirstPage() {
+    return this._currentPage === 1;
+  }
+
   perPage() {
     return this._perPage;
   }
@@ -67,6 +89,10 @@ class Paginator {
   }
 
   toData() {
+    if (this.constructor.formatter && typeof this.constructor.formatter === 'function') {
+      return this.constructor.formatter(this);
+    }
+
     return {
       current_page: this._currentPage,
       data: this._items.toData(),
@@ -82,7 +108,7 @@ class Paginator {
   }
 
   toJson(...args) {
-    return JSON.stringify(this.toData, ...args);
+    return JSON.stringify(this.toData(), ...args);
   }
 }
 
