@@ -86,11 +86,11 @@ class QueryBuilder {
   }
 
   skip(...args) {
-    return this.connector.offset(...args);
+    return this.offset(...args);
   }
 
   take(...args) {
-    return this.connector.limit(...args);
+    return this.limit(...args);
   }
 
   async chunk(count, callback) {
