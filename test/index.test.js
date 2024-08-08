@@ -6,6 +6,7 @@ const config = require(process.env.SUTANDO_CONFIG || './config');
 const dayjs = require('dayjs');
 const crypto = require('crypto');
 const collect = require('collect.js');
+const QueryBuilder = require('../src/query-builder');
 
 Promise.delay = function (duration) {
   return new Promise((resolve, reject) => {
@@ -720,24 +721,238 @@ describe('Integration test', () => {
         connection.destroy();
       });
 
-      describe('raw', () => {
-        it('should execute raw SQL query and return correct result', async () => {
-          if (process.env.DB === 'sqlite') {
-            const user = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
-            expect(user).toEqual([{
-              id: 2
-            }]);
-          } else if (process.env.DB === 'mysql') {
-            const res = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
-            expect(res[0]).toEqual([{
-              id: 2
-            }]);
-          } else if (process.env.DB === 'postgres') {
-            const res = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
-            expect(res.rows).toEqual([{
-              id: 2
-            }]);
-          }
+      describe('QueryBuilder', () => {
+        it('should return a QueryBuilder instance', () => {
+          expect(connection).toBeInstanceOf(QueryBuilder);
+        });
+      
+        describe('raw', () => {
+          it('should execute raw SQL query and return correct result', async () => {
+            if (process.env.DB === 'sqlite') {
+              const user = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
+              expect(user).toEqual([{
+                id: 2
+              }]);
+            } else if (process.env.DB === 'mysql') {
+              const res = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
+              expect(res[0]).toEqual([{
+                id: 2
+              }]);
+            } else if (process.env.DB === 'postgres') {
+              const res = await connection.raw('SELECT id FROM users WHERE id > ? LIMIT 1', [1]);
+              expect(res.rows).toEqual([{
+                id: 2
+              }]);
+            }
+          });
+        });
+
+        describe('query', () => {
+          it('calls query-builder method with the first argument, returning the query builder', () => {
+            const query = connection.table('users');
+            const q = query.where('id', 1);
+            expect(q).toStrictEqual(query);
+          });
+    
+          it('allows passing an object to query', () => {
+            const query = connection.table('users');
+            expect(filter(query._statements, {grouping: 'where'}).length).toBe(0);
+            
+            const q = query.where('id', 1).orWhere('id', '>', 10);
+            expect(q).toStrictEqual(query);
+            expect(filter(query._statements, {grouping: 'where'}).length).toBe(2);
+          });
+    
+          it('allows passing a function to query', () => {
+            const query = connection.table('users');
+            expect(filter(query._statements, {grouping: 'where'}).length).toBe(0);
+    
+            const q = query.where((q) => {
+              q.where('id', 1).orWhere('id', '>', '10');
+            });
+            
+            expect(q).toEqual(query);
+            expect(filter(query._statements, {grouping: 'where'}).length).toBe(1);
+          });
+
+          describe('#first() & #find()', () => {
+            it('issues a first (get one), triggering a fetched event, returning a promise', () => {
+              const query = connection.table('users').where('id', 1);
+  
+              return query.first().then((user) => {
+                expect(user.id).toBe(1);
+                expect(user.name).toBe('Shuri');
+              });
+            });
+      
+            it('allows specification of select columns in query', () => {
+              return connection.table('users').where('id', 1).select(['id', 'first_name']).first().then((user) => {
+                expect(user).toEqual({id: 1, first_name: 'Tim'});
+              });
+            });
+          });
+  
+          describe('#get()', () => {
+            it('should merge models with duplicate ids by default', async () => {
+              const users = await connection.table('users').get();
+  
+              expect(users.length).toBe(2);
+              expect(users.map(user => user.name)).toEqual(['Shuri', 'Alice']);
+            });
+      
+            it('returns an empty collection if there are no results', async () => {
+              const users = await connection.table('users')
+                .where('name', 'hal9000')
+                .get();
+  
+              expect(users.length).toBe(0);
+            });
+          });
+  
+          describe('#chunk()', () => {
+            it('fetches a single page of results with defaults', async () => {
+              const names = [];
+  
+              await connection.table('tags').orderBy('id', 'asc').chunk(2, (tags) => {
+                tags.map(tag => {
+                  names.push(tag.name);
+                });
+              });
+  
+              expect(names).toEqual(['cool', 'boring', 'exciting', 'amazing']);
+  
+              await connection.table('tags').orderBy('id', 'desc').chunk(2, (tags) => {
+                tags.map(tag => {
+                  names.push(tag.name);
+                });
+              });
+  
+              expect(names).toEqual(['cool', 'boring', 'exciting', 'amazing', 'amazing', 'exciting', 'boring', 'cool']);
+            });
+          });
+
+          describe('take/skip/limit/offset/forPage', () => {
+            it('should allow specifying limit and offset', () => {
+              return connection.table('users').limit(1).offset(1).get().then((users) => {
+                expect(users.length).toBe(1);
+                expect(users[0].id).toBe(2);
+              });
+            });
+
+            it('should allow specifying take and skip', () => {
+              return connection.table('users').take(1).skip(1).get().then((users) => {
+                expect(users.length).toBe(1);
+                expect(users[0].id).toBe(2);
+              });
+            });
+
+            it('should allow specifying forPage', () => {
+              return connection.table('users').forPage(2, 1).get().then((users) => {
+                expect(users.length).toBe(1);
+                expect(users[0].id).toBe(2);
+              });
+            });
+          });
+  
+          describe('#paginate()', () => {
+            it('fetches a single page of results with defaults', () => {
+              return connection.table('users').paginate()
+                .then((users) => {
+                  expect(users).toBeInstanceOf(Paginator);
+                });
+            });
+      
+            it('fetches a page of results with specified page size', () => {
+              return connection.table('users').paginate(1, 2)
+                .then((results) => {
+                  expect(results).toBeInstanceOf(Paginator);
+                  expect(results.count()).toBe(2);
+                  expect(results.total()).toBe(2);
+                  expect(results.currentPage()).toBe(1);
+                });
+            });
+      
+            it('fetches a page by page number', () => {
+              return connection.table('users').orderBy('id', 'asc').paginate(1, 2)
+                .then((results) => {
+                  expect(results.get(0).id).toBe(1);
+                  expect(results.get(1).id).toBe(2);
+                });
+            });
+      
+            describe('with groupBy', () => {
+              it('counts grouped rows instead of total rows', () => {
+                let total;
+  
+                return connection.table('posts').count().then(count => {
+                  total = parseInt(count);
+  
+                  return connection.table('posts')
+                    .select('user_id')
+                    .groupBy('user_id')
+                    .whereNotNull('user_id')
+                    .paginate();
+                }).then(posts => {
+                  expect(posts.count()).toBeLessThanOrEqual(total);
+                });
+              });
+      
+              it('counts grouped rows when using table name qualifier', () => {
+                let total;
+  
+                connection.table('posts').count()
+                  .then(count => {
+                    total = parseInt(count, 10);
+  
+                    return connection.table('posts')
+                      .select('user_id')
+                      .groupBy('posts.user_id')
+                      .whereNotNull('user_id')
+                      .paginate();
+                  })
+                  .then(posts => {
+                    expect(posts.count()).toBeLessThanOrEqual(total);
+                  });
+              });
+            });
+      
+            describe('with distinct', () => {
+              it('counts distinct occurences of a column instead of total rows', () => {
+                let total;
+  
+                return connection.table('posts').count()
+                  .then(count => {
+                    total = count;
+                    return connection.table('posts').distinct('user_id').get();
+                  })
+                  .then(distinctPostUsers => {
+                    expect(distinctPostUsers.length).toBeLessThanOrEqual(total);
+                  });
+              });
+            });
+          });
+  
+          describe('orderBy', () => {
+            it('returns results in the correct order', () => {
+              const asc = connection.table('users')
+                .orderBy('id', 'asc')
+                .get()
+                .then(result => {
+                  return result.map(user => user.id);
+                });
+  
+              const desc = connection.table('users')
+                .orderBy('id', 'desc')
+                .get()
+                .then(result => {
+                  return result.map(user => user.id);
+                });
+      
+              return Promise.all([asc, desc]).then((results) => {
+                expect(results[0].reverse()).toEqual(results[1]);
+              });
+            });
+          });
         });
       });
 
