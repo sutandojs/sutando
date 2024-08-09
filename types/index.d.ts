@@ -454,7 +454,9 @@ declare module 'sutando' {
     belongsToMany<T extends Model>(model: new () => T, table?: string, foreignPivotKey?: string, relatedPivotKey?: string, parentKey?: string, relatedKey?: string): BelongsToMany<T>;
   }
 
-  export class QueryBuilder<M, R = Collection<M> | Model> {
+  export class QueryBuilder<M, R = M[] | M> {
+    connector: any;
+    constructor(config: any, connector?: any);
     schema: SchemaBuilder;
     table(name: string): this;
     select: SelectMethod<this>;
@@ -572,9 +574,11 @@ declare module 'sutando' {
     transaction(callback: (trx: Trx) => Promise<any>): Promise<any>;
     destroy(): void;
 
+    clone(): QueryBuilder<M, R>;
     raw(sql: string, bindings?: any[]): Raw;
-    get(columns?: string[]): Promise<any[] | Collection<M>>;
-    find(key: string | number, columns?: string[]): Promise<M>;
+    get<T = M>(columns?: string[]): Promise<T[]>;
+    first<T = M>(columns?: string[]): Promise<T | null | undefined>;
+    find<T = M>(key: string | number, columns?: string[]): Promise<T>;
     update(attributes: any): Promise<M>;
     exists(): Promise<boolean>;
     count(column?: string): Promise<number>;
@@ -586,9 +590,9 @@ declare module 'sutando' {
     take(count: number): this;
     limit(count: number): this;
     offset(count: number): this;
-    chunk(count: number, callback: (rows: M[] | Collection<M>) => any): Promise<boolean>;
+    chunk(count: number, callback: (rows: M[]) => any): Promise<boolean>;
     forPage(page: number, perPage?: number): this;
-    paginate<F = { current_page: number, data: any[], per_page: number, total: number, last_page: number, count: number, }>(page: number, perPage?: number): Promise<Paginator<M, F>>;
+    paginate<F = { current_page: number, data: M[], per_page: number, total: number, last_page: number, count: number, }>(page: number, perPage?: number): Promise<Paginator<M, F>>;
   }
 
   type WithRelationType = {
