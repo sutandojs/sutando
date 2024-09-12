@@ -579,7 +579,9 @@ declare module 'sutando' {
     get<T = M>(columns?: string[]): Promise<T[]>;
     first<T = M>(columns?: string[]): Promise<T | null | undefined>;
     find<T = M>(key: string | number, columns?: string[]): Promise<T>;
-    update(attributes: any): Promise<M>;
+    insert(attributes: any): Promise<unknown>;
+    update(attributes: any): Promise<unknown>;
+    delete(): Promise<number>;
     exists(): Promise<boolean>;
     count(column?: string): Promise<number>;
     min(column: string): Promise<number>;
