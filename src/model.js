@@ -490,7 +490,7 @@ class Model extends BaseModel {
   }
 
   newPivot(parent, attributes, table, exists, using = null) {
-    return using ? using.constructor.fromRawAttributes(parent, attributes, table, exists)
+    return using ? using.fromRawAttributes(parent, attributes, table, exists)
       : Pivot.fromAttributes(parent, attributes, table, exists);
   }
 

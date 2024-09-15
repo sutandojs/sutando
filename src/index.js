@@ -1,6 +1,7 @@
 
 const Builder = require('./builder');
 const Model = require('./model');
+const Pivot = require('./pivot');
 const Collection = require('./collection');
 const Paginator = require('./paginator');
 const sutando = require('./sutando');
@@ -18,6 +19,7 @@ module.exports = {
   Paginator,
   Collection,
   Model,
+  Pivot,
   Builder,
   Attribute,
   CastsAttributes,
