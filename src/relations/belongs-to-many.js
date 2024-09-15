@@ -108,6 +108,20 @@ class BelongsToMany extends compose(
     return new Collection(models);
   }
 
+  async first(columns = ['*']) {
+    const results = await this.take(1).get(columns);
+    return results.count() > 0 ? results.first() : null;
+  }
+
+  async firstOrFail(columns = ['*']) {
+    const model = await this.first(columns);
+    if (model !== null) {
+      return model;
+    }
+
+    throw (new ModelNotFoundError).setModel(this.related.constructor);
+  }
+
   async paginate(page = 1, perPage = 15, columns = ['*']) {
     this.query.select(this.shouldSelect(columns));
 
@@ -116,9 +130,26 @@ class BelongsToMany extends compose(
     });
   }
 
+  async chunk(count, callback) {
+    return await this.prepareQueryBuilder().chunk(count, async (results, page) => {
+      this.hydratePivotRelation(results.all());
+
+      return await callback(results, page);
+    });
+  }
+
+  setUsing(model) {
+    this.using = model;
+    return this;
+  }
+
   as(accessor) {
     this.accessor = accessor;
     return this;
+  }
+
+  prepareQueryBuilder() {
+    return this.query.select(this.shouldSelect());
   }
 
   hydratePivotRelation(models) {
