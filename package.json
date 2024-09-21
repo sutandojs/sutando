@@ -1,6 +1,6 @@
 {
   "name": "sutando",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "packageManager": "pnpm@7.1.0",
   "description": "A modern Node.js ORM. Makes it enjoyable to interact with your database. Support Mysql, MSSql, MariaDB, Sqlite.",
   "homepage": "https://sutando.org/",
