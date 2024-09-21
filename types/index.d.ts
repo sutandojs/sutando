@@ -454,6 +454,8 @@ declare module 'sutando' {
     belongsToMany<T extends Model>(model: new () => T, table?: string, foreignPivotKey?: string, relatedPivotKey?: string, parentKey?: string, relatedKey?: string): BelongsToMany<T>;
   }
 
+  export class Pivot extends Model {}
+
   export class QueryBuilder<M, R = M[] | M> {
     connector: any;
     constructor(config: any, connector?: any);
@@ -656,25 +658,25 @@ declare module 'sutando' {
     skip(count: number): this;
     limit(count: number): this;
     offset(count: number): this;
-    first(column?: string | string[]): Promise<M | null>;
-    firstOrFail(column?: string | string[]): Promise<M>;
-    findOrFail(key: string | number, columns?: string[]): Promise<M>;
-    findOrFail(key: string[] | number[] | Collection<any>, columns?: string[]): Promise<Collection<M>>;
-    findOrFail(key: string | number | string[] | number[] | Collection<any>, columns?: string[]): Promise<M | Collection<M>>;
-    findOrNew(id: string | number, columns?: string[]): Promise<M>;
-    firstOrNew(attributes?: object, values?: object): Promise<M>;
-    firstOrCreate(attributes?: object, values?: object): Promise<M>;
+    first<T = M>(column?: string | string[]): Promise<T | null>;
+    firstOrFail<T = M>(column?: string | string[]): Promise<T>;
+    findOrFail<T = M>(key: string | number, columns?: string[]): Promise<T>;
+    findOrFail<T = M>(key: string[] | number[] | Collection<any>, columns?: string[]): Promise<Collection<T>>;
+    findOrFail<T = M>(key: string | number | string[] | number[] | Collection<any>, columns?: string[]): Promise<T | Collection<T>>;
+    findOrNew<T = M>(id: string | number, columns?: string[]): Promise<T>;
+    firstOrNew<T = M>(attributes?: object, values?: object): Promise<T>;
+    firstOrCreate<T = M>(attributes?: object, values?: object): Promise<T>;
     updateOrCreate(attributes: object, values?: object): Promise<M>;
     latest(column?: string): this;
     oldest(column?: string): this;
-    find(key: string | number, columns?: string[]): Promise<M | null>;
-    find(key: string[] | number[] | Collection<any>, columns?: string[]): Promise<Collection<M>>;
-    find(key: string | number | string[] | number[] | Collection<any>, columns?: string[]): Promise<M | Collection<M> | null>;
-    findMany(keys: string[] | number[] | Collection<any>, columns?: string[]): Promise<Collection<M>>;
+    find<T = M>(key: string | number, columns?: string[]): Promise<T | null>;
+    find<T = M>(key: string[] | number[] | Collection<any>, columns?: string[]): Promise<Collection<T>>;
+    find<T = M>(key: string | number | string[] | number[] | Collection<any>, columns?: string[]): Promise<T | Collection<T> | null>;
+    findMany<T = M>(keys: string[] | number[] | Collection<any>, columns?: string[]): Promise<Collection<T>>;
     pluck(column: string): Promise<Collection<any>>;
     destroy(ids: string | number | string[] | number[] | Collection<any>): Promise<number>;
-    get(columns?: string[]): Promise<Collection<M>>;
-    all(columns?: string[]): Promise<Collection<M>>;
+    get<T = M>(columns?: string[]): Promise<Collection<T>>;
+    all<T = M>(columns?: string[]): Promise<Collection<T>>;
     paginate<F = { current_page: number, data: any[], per_page: number, total: number, last_page: number, count: number, }>(page?: number, perPage?: number): Promise<Paginator<M, F>>;
     [value: string]: any;
   }
@@ -710,6 +712,7 @@ declare module 'sutando' {
     toJSON(): any;
     toJson(): string;
     toString(): string;
+    [Symbol.iterator](): Iterator<T>;
   }
 
   export class Paginator<T, K = {
