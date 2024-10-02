@@ -3,6 +3,11 @@ import { Collection as BaseCollection } from 'collect.js';
 
 declare module 'sutando' {
   type AnyQueryBuilder = QueryBuilder<any, any>;
+  export interface Constructor<T> {
+    new (): T;
+  }
+  type AnyModelConstructor = ModelConstructor<Model>;
+  export interface ModelConstructor<M extends Model> extends Constructor<M> {}
   export type SchemaBuilder = Knex.SchemaBuilder;
   type Raw = Knex.Raw;
   type Trx = AnyQueryBuilder & {
@@ -759,7 +764,7 @@ declare module 'sutando' {
     };
   };
 
-  export interface ISoftDeletes {
+  export interface ISoftDeletes<T extends new (...args: any[]) => Model> {
     new (...args: ConstructorParameters<T>): {
       forceDeleting: boolean;
       initializeSoftDeletes(): void;
@@ -783,7 +788,7 @@ declare module 'sutando' {
     forceDeleted(callback: Function): void;
   }
 
-  export function SoftDeletes<T extends new (...args: any[]) => Model>(Base: T): T & ISoftDeletes;
+  export function SoftDeletes<T extends new (...args: any[]) => Model>(Base: T): T & ISoftDeletes<T>;
 
   export class Migration {
     protected connection: AnyQueryBuilder;
@@ -794,4 +799,13 @@ declare module 'sutando' {
 
   export function getRelationMethod(name: string): string;
   export function getScopeMethod(name: string): string;
+  export const compose: MixinFunction;
+
+  export interface Plugin {
+    <M extends typeof Model>(modelClass: M): M;
+  }
+
+  export interface MixinFunction {
+    <MC extends AnyModelConstructor>(modelClass: MC, ...plugins: Plugin[]): MC;
+  }
 }
