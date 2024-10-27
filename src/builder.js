@@ -159,6 +159,7 @@ class Builder {
     builder.setModel(this.model);
     builder.globalScopes = { ...this.globalScopes };
     builder.localMacros = { ...this.localMacros };
+    builder.eagerLoad = { ...this.eagerLoad };
     
     return builder;
   }
