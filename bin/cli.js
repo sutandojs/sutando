@@ -176,6 +176,10 @@ program
     
     sutando.addConnection(config, 'default');
 
+    Object.entries(config.connections || {}).forEach(([name, connection]) => {
+        sutando.addConnection(connection, name);
+    });
+
     const repository = new MigrationRepository(sutando, table);
     const migrator = new Migrator(repository, sutando);
 
@@ -209,6 +213,10 @@ program
     
     sutando.addConnection(config, 'default');
 
+    Object.entries(config.connections || {}).forEach(([name, connection]) => {
+        sutando.addConnection(connection, name);
+    });
+
     const repository = new MigrationRepository(sutando, table);
     const migrator = new Migrator(repository, sutando);
 
@@ -240,6 +248,10 @@ program
     const Migrator = getSutandoModule('src/migrations/migrator');
     
     sutando.addConnection(config, 'default');
+
+    Object.entries(config.connections || {}).forEach(([name, connection]) => {
+        sutando.addConnection(connection, name);
+    });
 
     const repository = new MigrationRepository(sutando, table);
     const migrator = new Migrator(repository, sutando);
