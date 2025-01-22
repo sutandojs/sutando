@@ -1,7 +1,7 @@
 {
   "name": "sutando",
   "version": "1.6.6",
-  "packageManager": "pnpm@7.1.0",
+  "packageManager": "pnpm@7.33.7",
   "description": "A modern Node.js ORM. Makes it enjoyable to interact with your database. Support Mysql, MSSql, MariaDB, Sqlite.",
   "homepage": "https://sutando.org/",
   "bin": {
@@ -11,13 +11,45 @@
   "types": "./types/index.d.ts",
   "exports": {
     ".": {
+      "node": {
+        "import": {
+          "types": "./types/index.d.ts",
+          "default": "./sutando.mjs"
+        },
+        "require": {
+          "types": "./types/index.d.ts",
+          "default": "./sutando.js"
+        }
+      },
+      "browser": {
+        "import": {
+          "types": "./types/browser/index.d.ts",
+          "default": "./src/browser/sutando.mjs"
+        },
+        "require": {
+          "types": "./types/browser/index.d.ts",
+          "default": "./src/browser/sutando.js"
+        }
+      },
+      "default": {
+        "import": {
+          "types": "./types/index.d.ts",
+          "default": "./sutando.mjs"
+        },
+        "require": {
+          "types": "./types/index.d.ts",
+          "default": "./sutando.js"
+        }
+      }
+    },
+    "./browser": {
       "import": {
-        "types": "./types/index.d.ts",
-        "default": "./sutando.mjs"
+        "types": "./types/browser/index.d.ts",
+        "default": "./src/browser/sutando.mjs"
       },
       "require": {
-        "types": "./types/index.d.ts",
-        "default": "./sutando.js"
+        "types": "./types/browser/index.d.ts",
+        "default": "./src/browser/sutando.js"
       }
     },
     "./package.json": "./package.json"
@@ -31,9 +63,10 @@
     "pnpm": ">=4"
   },
   "scripts": {
-    "test:mysql": "cross-env DB=mysql jest",
-    "test:postgres": "cross-env DB=postgres jest",
-    "test:sqlite": "cross-env DB=sqlite jest"
+    "test:mysql": "cross-env DB=mysql jest --selectProjects node",
+    "test:postgres": "cross-env DB=postgres jest --selectProjects node",
+    "test:sqlite": "cross-env DB=sqlite jest --selectProjects node",
+    "test:browser": "jest --selectProjects browser"
   },
   "husky": {
     "hooks": {
@@ -61,6 +94,7 @@
     "cross-env": "^7.0.3",
     "husky": "^8.0.1",
     "jest": "^29.0.3",
+    "jest-environment-jsdom": "^29.0.3",
     "lint-staged": "^13.0.0",
     "mysql2": "3.9.4",
     "pg": "8.8.0",
