@@ -1,7 +1,22 @@
 const unset = require('lodash/unset');
 const filter = require('lodash/filter');
 const kebabCase = require('lodash/kebabCase');
-const { sutando, Model, Collection, Builder, Paginator, compose, SoftDeletes, Attribute, HasUniqueIds, CastsAttributes, ModelNotFoundError } = require('../src');
+const {
+  sutando,
+  Model,
+  Collection,
+  Builder,
+  Paginator,
+  compose,
+  SoftDeletes,
+  Attribute,
+  HasUniqueIds,
+  CastsAttributes,
+  ModelNotFoundError,
+  make,
+  makeCollection,
+  makePaginator,
+} = require('../src');
 const config = require(process.env.SUTANDO_CONFIG || './config');
 const dayjs = require('dayjs');
 const crypto = require('crypto');
@@ -15,6 +30,14 @@ Promise.delay = function (duration) {
     }, duration)
   });
 }
+
+describe('node environment test', () => {
+  test('should load the node version of the module', () => {
+    // Test automatically loads the node version
+    const module = require('sutando');
+    expect(module.isBrowser).toBeUndefined();
+  });
+});
 
 describe('Sutando', () => {
   it('should fail if passing a wrong connection info', () => {
@@ -964,6 +987,118 @@ describe('Integration test', () => {
         it('should return a Builder instance', () => {
           expect(User.query()).toBeInstanceOf(Builder);
         });
+
+        describe('#make', () => {
+          it('should return a Model instance', () => {
+            const user = make(User, {
+              id: 1
+            });
+            expect(user).toBeInstanceOf(User);
+      
+            const anotherUser = make(User, {
+              id: 1,
+              posts: [
+                {
+                  id: 1,
+                  title: 'Test'
+                },
+                {
+                  id: 2,
+                  title: 'Test 2'
+                }
+              ]
+            });
+            expect(anotherUser).toBeInstanceOf(User);
+            expect(anotherUser.posts).toBeInstanceOf(Collection);
+            expect(anotherUser.posts.count()).toBe(2);
+            expect(anotherUser.posts.get(1).title).toBe('Test 2');
+          });
+      
+          it('should return a Collection instance', () => {
+            const data = [
+              {
+                id: 1,
+                name: 'Test'
+              },
+              {
+                id: 2,
+                name: 'Test 2'
+              }
+            ];
+            const users = make(User, data);
+            expect(users).toBeInstanceOf(Collection);
+            expect(users.count()).toBe(2);
+            expect(users.get(1).name).toBe('Test 2');
+      
+            const users2 = makeCollection(User, data);
+            expect(users2).toBeInstanceOf(Collection);
+            expect(users2.count()).toBe(2);
+            expect(users2.get(1).name).toBe('Test 2');
+          });
+      
+          it('should return a Paginator instance', () => {
+            const data = {
+              total: 2,
+              data: [
+                {
+                  id: 1,
+                  name: 'Test'
+                },
+                {
+                  id: 2,
+                  name: 'Test 2'
+                }
+              ],
+              current_page: 1,
+              per_page: 10,
+            };
+      
+            const users = make(User, data, {
+              paginated: true
+            });
+            expect(users).toBeInstanceOf(Paginator);
+            expect(users.total()).toBe(2);
+            expect(users.perPage()).toBe(10);
+            expect(users.currentPage()).toBe(1);
+            expect(users.items().count()).toBe(2);
+            expect(users.items().get(1)).toBeInstanceOf(User);
+      
+            const users2 = makePaginator(User, data, {
+              paginated: true
+            });
+            expect(users2).toBeInstanceOf(Paginator);
+            expect(users2.total()).toBe(2);
+            expect(users2.perPage()).toBe(10);
+            expect(users2.currentPage()).toBe(1);
+            expect(users2.items().count()).toBe(2);
+            expect(users2.items().get(1)).toBeInstanceOf(User);
+          });
+      
+          it('should return a Model instance', () => {
+            const user = User.make({
+              id: 1
+            });
+            expect(user).toBeInstanceOf(User);
+      
+            const anotherUser = User.make({
+              id: 1,
+              posts: [
+                {
+                  id: 1,
+                  title: 'Test'
+                },
+                {
+                  id: 2,
+                  title: 'Test 2'
+                }
+              ]
+            });
+            expect(anotherUser).toBeInstanceOf(User);
+            expect(anotherUser.posts).toBeInstanceOf(Collection);
+            expect(anotherUser.posts.count()).toBe(2);
+            expect(anotherUser.posts.get(1).title).toBe('Test 2');
+          });
+        })
 
         describe('first', () => {
           it('should create a new model instance', async () => {

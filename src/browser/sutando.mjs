@@ -1,17 +1,12 @@
-import Sutando from './src/index.js';
+import Sutando from './index.js';
 
 const {
-  sutando,
   Paginator,
   Collection,
   Model,
   Pivot,
-  Builder,
   Attribute,
   CastsAttributes,
-  Migration,
-  Scope,
-  SoftDeletes,
   HasUniqueIds,
   make,
   makeCollection,
@@ -30,20 +25,18 @@ const {
   ModelNotFoundError,
   RelationNotFoundError,
   InvalidArgumentError,
+  isBrowser,
 } = Sutando;
 
+export default Sutando;
+
 export {
-  sutando,
   Paginator,
   Collection,
   Model,
   Pivot,
-  Builder,
   Attribute,
   CastsAttributes,
-  Migration,
-  Scope,
-  SoftDeletes,
   HasUniqueIds,
   make,
   makeCollection,
@@ -62,4 +55,5 @@ export {
   ModelNotFoundError,
   RelationNotFoundError,
   InvalidArgumentError,
+  isBrowser,
 };

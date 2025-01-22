@@ -66,3 +66,6 @@ jobs:
           POSTGRES_USER: sutando
           POSTGRES_PASSWORD: sutando
           POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
+
+      - name: Run browser tests
+        run: pnpm test:browser

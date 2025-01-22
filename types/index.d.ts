@@ -360,6 +360,7 @@ declare module 'sutando' {
     static query<T extends { prototype: unknown }>(this: T, client?: AnyQueryBuilder | null): Builder<T['prototype']>;
     static on<T extends { prototype: unknown }>(this: T, connection: string | null): Builder<T['prototype']>;
     static boot(): void;
+    static make<T extends Model>(this: new () => T, attributes?: {}): T;
     static addHook(hook: Hook, callback: Function): void;
     static creating(callback: Function): void;
     static created(callback: Function): void;
@@ -800,6 +801,10 @@ declare module 'sutando' {
   export function getRelationMethod(name: string): string;
   export function getScopeMethod(name: string): string;
   export const compose: MixinFunction;
+
+  export function make<T extends new (...args: any[]) => Model>(modelClass: T, attributes: Record<string, any>[]): Collection<T>;
+  export function makeCollection<T extends new (...args: any[]) => Model>(modelClass: T, attributes: Record<string, any>[]): Collection<T>;
+  export function makePaginator<T extends new (...args: any[]) => Model>(modelClass: T, attributes: Record<string, any>[]): Paginator<T>;
 
   export interface Plugin {
     <M extends typeof Model>(modelClass: M): M;

@@ -1,18 +1,13 @@
-
-const Builder = require('./builder');
 const Model = require('./model');
 const Pivot = require('./pivot');
 const Collection = require('./collection');
 const Paginator = require('./paginator');
-const sutando = require('./sutando');
-const Scope = require('./scope');
-const SoftDeletes = require('./soft-deletes');
-const utils = require('./utils');
-const Attribute = require('./casts/attribute');
-const CastsAttributes = require('./casts-attributes');
-const Migration = require('./migrations/migration');
-const Errors = require('./errors');
-const HasUniqueIds = require('./concerns/has-unique-ids');
+const utils = require('../utils');
+const Attribute = require('../casts/attribute');
+const CastsAttributes = require('../casts-attributes');
+const Errors = require('../errors');
+const HasUniqueIds = require('../concerns/has-unique-ids');
+const isArray = require('lodash/isArray');
 
 const make = (
   model,
@@ -29,7 +24,7 @@ const make = (
     );
   }
   
-  if (Array.isArray(data)) {
+  if (isArray(data)) {
     return new Collection(data.map(item => model.make(item)));
   }
 
@@ -39,18 +34,16 @@ const make = (
 const makeCollection = (model, data) => new Collection(data.map(item => model.make(item)));
 const makePaginator = (model, data) => new Paginator(data.data.map(item => model.make(item)), data.total, data.per_page, data.current_page);
 
+const isBrowser = true;
+
 module.exports = {
-  sutando,
+  isBrowser,
   Paginator,
   Collection,
   Model,
   Pivot,
-  Builder,
   Attribute,
   CastsAttributes,
-  Migration,
-  Scope,
-  SoftDeletes,
   HasUniqueIds,
   make,
   makeCollection,

@@ -14,7 +14,7 @@ const HasHooks = require('./concerns/has-hooks');
 const HasGlobalScopes = require('./concerns/has-global-scopes');
 const UniqueIds = require('./concerns/unique-ids');
 
-const { compose, tap, getScopeMethod } = require('./utils');
+const { compose, tap, getScopeMethod, getRelationMethod } = require('./utils');
 
 const BaseModel = compose(
   class {},
@@ -64,6 +64,37 @@ class Model extends BaseModel {
 
   static extend(plugin, options) {
     plugin(this, options);
+  }
+
+  static make(attributes = {}) {
+    const instance = new this();
+    const HasMany = require('./relations/has-many');
+    const HasOne = require('./relations/has-one');
+    const BelongsTo = require('./relations/belongs-to');
+    const BelongsToMany = require('./relations/belongs-to-many');
+
+    for (let attribute in attributes) {
+
+      if (typeof instance[getRelationMethod(attribute)] !== 'function') {
+        instance.setAttribute(attribute, attributes[attribute]);
+      } else {
+        const relation = instance[getRelationMethod(attribute)]();
+        const related = relation.getRelated().constructor;
+        if (
+          relation instanceof HasOne
+          || relation instanceof BelongsTo
+        ) {
+          instance.setRelation(attribute, related.make(attributes[attribute]));
+        } else if (
+          (relation instanceof HasMany || relation instanceof BelongsToMany)
+          && Array.isArray(attributes[attribute])
+        ) {
+          instance.setRelation(attribute, new Collection(attributes[attribute].map(item => related.make(item))));
+        }
+      }
+    }
+
+    return instance;
   }
 
   constructor(attributes = {}) {
