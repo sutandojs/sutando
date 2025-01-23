@@ -1,4 +1,3 @@
-
 const Builder = require('./builder');
 const Model = require('./model');
 const Pivot = require('./pivot');
@@ -13,6 +12,7 @@ const CastsAttributes = require('./casts-attributes');
 const Migration = require('./migrations/migration');
 const Errors = require('./errors');
 const HasUniqueIds = require('./concerns/has-unique-ids');
+const { migrateRun, migrateRollback, migrateStatus } = require('./migrate');
 
 const make = (
   model,
@@ -55,6 +55,9 @@ module.exports = {
   make,
   makeCollection,
   makePaginator,
+  migrateRun,
+  migrateRollback,
+  migrateStatus,
   ...Errors,
   ...utils,
 }

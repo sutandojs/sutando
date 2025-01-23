@@ -30,6 +30,9 @@ const {
   ModelNotFoundError,
   RelationNotFoundError,
   InvalidArgumentError,
+  migrateRun,
+  migrateRollback,
+  migrateStatus,
 } = Sutando;
 
 export {
@@ -62,4 +65,7 @@ export {
   ModelNotFoundError,
   RelationNotFoundError,
   InvalidArgumentError,
+  migrateRun,
+  migrateRollback,
+  migrateStatus
 };
