@@ -1,5 +1,4 @@
-const path = require('path');
-const { findUpConfig, getMigrationPaths } = require('../bin/utils');
+const { getMigrationPaths } = require('../bin/utils');
 
 async function prepareDatabase(migrator) {
   const exists = await migrator.repositoryExists();
