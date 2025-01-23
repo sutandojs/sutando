@@ -151,47 +151,18 @@ program
   .option('--step', 'Force the migrations to be run so they can be rolled back individually.')
   .option('--path <path>', 'The path to the migrations directory.')
   .action(async (opts) => {
-    async function prepareDatabase(migrator) {
-      const exists = await migrator.repositoryExists();
-      if (!exists) {
-        console.log('Preparing database.');
-        console.log('Creating migration table...');
-
-        await migrator.repository.createRepository();
-
-        console.log('Migration table created successfully.');
-      }
-    }
-    
     if (!env.configPath) {
       exit('Error: sutando config not found. Run `sutando init` first.');
     }
 
     const config = require(env.configPath);
-    const table = config?.migration?.table || 'migrations';
-
-    const sutando = getSutandoModule('src/sutando');
-    const MigrationRepository = getSutandoModule('src/migrations/migration-repository');
-    const Migrator = getSutandoModule('src/migrations/migrator');
     
-    sutando.addConnection(config, 'default');
-
-    Object.entries(config.connections || {}).forEach(([name, connection]) => {
-        sutando.addConnection(connection, name);
-    });
-
-    const repository = new MigrationRepository(sutando, table);
-    const migrator = new Migrator(repository, sutando);
-
-    await prepareDatabase(migrator);
-    const paths = await getMigrationPaths(env.cwd, migrator, config?.migrations?.path, opts.path);
-
-    await migrator.setOutput(true).run(paths, {
-      step: opts.step,
-      pretend: opts.pretend,
-    });
-
-    sutando.destroyAll();
+    try {
+      const { migrateRun } = getSutandoModule('src/migrate');
+      await migrateRun(config, opts);
+    } catch (err) {
+      exit(err);
+    }
   });
 
 program
@@ -205,30 +176,13 @@ program
     }
 
     const config = require(env.configPath);
-    const table = config?.migration?.table || 'migrations';
-
-    const sutando = getSutandoModule('src/sutando');
-    const MigrationRepository = getSutandoModule('src/migrations/migration-repository');
-    const Migrator = getSutandoModule('src/migrations/migrator');
     
-    sutando.addConnection(config, 'default');
-
-    Object.entries(config.connections || {}).forEach(([name, connection]) => {
-        sutando.addConnection(connection, name);
-    });
-
-    const repository = new MigrationRepository(sutando, table);
-    const migrator = new Migrator(repository, sutando);
-
-    const paths = await getMigrationPaths(env.cwd, migrator, config?.migrations?.path, opts.path);
-
-    await migrator.setOutput(true).rollback(paths, {
-      step: opts.step || 0,
-      pretend: opts.pretend,
-      batch: opts.batch || 0,
-    });
-
-    sutando.destroyAll();
+    try {
+      const { migrateRollback } = getSutandoModule('src/migrate');
+      await migrateRollback(config, opts);
+    } catch (err) {
+      exit(err);
+    }
   });
 
 program
@@ -241,76 +195,27 @@ program
     }
 
     const config = require(env.configPath);
-    const table = config?.migration?.table || 'migrations';
-
-    const sutando = getSutandoModule('src/sutando');
-    const MigrationRepository = getSutandoModule('src/migrations/migration-repository');
-    const Migrator = getSutandoModule('src/migrations/migrator');
     
-    sutando.addConnection(config, 'default');
+    try {
+      const { migrateStatus } = getSutandoModule('src/migrate');
+      const migrations = await migrateStatus(config, opts);
 
-    Object.entries(config.connections || {}).forEach(([name, connection]) => {
-        sutando.addConnection(connection, name);
-    });
+      if (migrations.length > 0) {
+        twoColumnDetail(color.gray('Migration name'), color.gray('Batch / Status'));
 
-    const repository = new MigrationRepository(sutando, table);
-    const migrator = new Migrator(repository, sutando);
-
-    async function getAllMigrationFiles() {
-      return await migrator.getMigrationFiles(
-        await getMigrationPaths(env.cwd, migrator, config?.migrations?.path, opts.path)
-      );
+        migrations.forEach(migration => {
+          const status = migration.ran 
+            ? `[${migration.batch}] ${color.green('Ran')}`
+            : color.yellow('Pending');
+          twoColumnDetail(migration.name, status);
+        });
+      } else {
+        console.log('No migrations found');
+      }
+    } catch (err) {
+      exit(err);
     }
-
-    async function getStatusFor(ran, batches) {
-      const files = await getAllMigrationFiles();
-      return Object.values(files).map(function (migration) {
-        const migrationName = migrator.getMigrationName(migration);
-
-        let status = ran.includes(migrationName)
-          ? color.green('Ran')
-          : color.yellow('Pending');
-
-        if (ran.includes(migrationName)) {
-          status = '[' + batches[migrationName] + '] ' + status;
-        }
-
-        return [migrationName, status];
-      });
-    }
-
-    const exists = await migrator.repositoryExists();
-    if (!exists) {
-      exit('Migration table does not exist.');
-    }
-
-    const ran = await repository.getRan();
-
-    const batches = await migrator.getRepository().getMigrationBatches();
-
-    let migrations = await getStatusFor(ran, batches);
-
-    if (opts.pending) {
-      migrations = migrations.filter(function (migration) {
-        return migration[1].includes('Pending');
-      });
-    }
-
-    if (migrations.length > 0) {
-      twoColumnDetail(color.gray('Migration name'), color.gray('Batch / Status'));
-
-      migrations.map(
-        (migration) => twoColumnDetail(migration[0], migration[1])
-      );
-    } else if (opts.pending) {
-      console.log('No pending migrations');
-    } else {
-      console.log('No migrations found');
-    }
-
-    sutando.destroyAll();
   });
-
 
 program
   .command('model:make <name>')
