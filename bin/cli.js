@@ -159,7 +159,7 @@ program
     
     try {
       const { migrateRun } = getSutandoModule('src/migrate');
-      await migrateRun(config, opts);
+      await migrateRun(config, opts, true);
     } catch (err) {
       exit(err);
     }
@@ -179,7 +179,7 @@ program
     
     try {
       const { migrateRollback } = getSutandoModule('src/migrate');
-      await migrateRollback(config, opts);
+      await migrateRollback(config, opts, true);
     } catch (err) {
       exit(err);
     }
@@ -198,7 +198,7 @@ program
     
     try {
       const { migrateStatus } = getSutandoModule('src/migrate');
-      const migrations = await migrateStatus(config, opts);
+      const migrations = await migrateStatus(config, opts, true);
 
       if (migrations.length > 0) {
         twoColumnDetail(color.gray('Migration name'), color.gray('Batch / Status'));

@@ -814,22 +814,34 @@ declare module 'sutando' {
     <MC extends AnyModelConstructor>(modelClass: MC, ...plugins: Plugin[]): MC;
   }
 
-  export function migrateRun(config: any, options?: {
-    step?: number;
-    pretend?: boolean;
-    path?: string;
-  }): Promise<void>;
+  export function migrateRun(
+    config: any,
+    options?: {
+      step?: number;
+      pretend?: boolean;
+      path?: string;
+    },
+    destroyAll?: boolean = false
+  ): Promise<void>;
 
-  export function migrateRollback(config: any, options?: {
-    step?: number;
-    pretend?: boolean;
-    batch?: number;
-    path?: string;
-  }): Promise<void>;
+  export function migrateRollback(
+    config: any,
+    options?: {
+      step?: number;
+      pretend?: boolean;
+      batch?: number;
+      path?: string;
+    },
+    destroyAll?: boolean = false
+  ): Promise<void>;
 
-  export function migrateStatus(config: any, options?: {
-    path?: string;
-  }): Promise<Array<{
+  export function migrateStatus(
+    config: any,
+    options?: {
+      path?: string;
+    },
+    destroyAll?: boolean = false
+  ): Promise<Array<{
     name: string;
     ran: boolean;
     batch: number | null;

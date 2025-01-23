@@ -31,7 +31,7 @@ async function setupConnection(config) {
   return { sutando, migrator };
 }
 
-async function migrateRun(config, options = {}) {
+async function migrateRun(config, options = {}, destroyAll = false) {
   const { sutando, migrator } = await setupConnection(config);
 
   await prepareDatabase(migrator);
@@ -42,10 +42,12 @@ async function migrateRun(config, options = {}) {
     pretend: options.pretend,
   });
 
-  sutando.destroyAll();
+  if (destroyAll) {
+    await sutando.destroyAll();
+  }
 }
 
-async function migrateRollback(config, options = {}) {
+async function migrateRollback(config, options = {}, destroyAll = false) {
   const { sutando, migrator } = await setupConnection(config);
 
   const paths = await getMigrationPaths(process.cwd(), migrator, config?.migrations?.path, options.path);
@@ -56,10 +58,12 @@ async function migrateRollback(config, options = {}) {
     batch: options.batch || 0,
   });
 
-  sutando.destroyAll();
+  if (destroyAll) {
+    await sutando.destroyAll();
+  }
 }
 
-async function migrateStatus(config, options = {}) {
+async function migrateStatus(config, options = {}, destroyAll = false) {
   const { sutando, migrator } = await setupConnection(config);
 
   async function getAllMigrationFiles() {
@@ -92,7 +96,9 @@ async function migrateStatus(config, options = {}) {
   const batches = await migrator.getRepository().getMigrationBatches();
   const migrations = await getStatusFor(ran, batches);
 
-  sutando.destroyAll();
+  if (destroyAll) {
+    await sutando.destroyAll();
+  }
   
   return migrations;
 }
