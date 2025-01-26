@@ -11,6 +11,16 @@
   "types": "./types/index.d.ts",
   "exports": {
     ".": {
+      "worker": {
+        "import": {
+          "types": "./types/index.d.ts",
+          "default": "./sutando.mjs"
+        },
+        "require": {
+          "types": "./types/index.d.ts",
+          "default": "./sutando.js"
+        }
+      },
       "node": {
         "import": {
           "types": "./types/index.d.ts",
