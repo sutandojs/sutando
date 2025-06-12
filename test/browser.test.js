@@ -239,7 +239,7 @@ describe('Model', () => {
     });
 
     it('serializes correctly', () => {
-      testModel.makeVisible('firstName');
+      testModel.setVisible(['firstName']);
       expect(testModel.toJson()).toBe('{"firstName":"Joe"}');
       expect(testModel.toString()).toBe('{"firstName":"Joe"}');
     });
@@ -251,32 +251,51 @@ describe('Model', () => {
       });
 
       it('hides the fields specified in the model\'s "hidden" property', () => {
-        expect(testModel.makeHidden('firstName').toData()).toEqual({id: 1, lastName: 'Shmoe', address: '123 Main St.'});
+        expect(testModel.setHidden(['firstName']).toData()).toEqual({id: 1, lastName: 'Shmoe', address: '123 Main St.'});
+        testModel.setHidden(['firstName', 'lastName']).makeVisible('firstName');
+        expect(testModel.getHidden()).toEqual(['lastName']);
+        expect(testModel.toData()).toEqual({id: 1, firstName: 'Joe', address: '123 Main St.'});
       });
 
       it('hides the fields specified in the "options.hidden" property', () => {
-        testModel.makeHidden(['firstName', 'id']);
+        testModel.setHidden(['firstName', 'id']);
         expect(testModel.toData()).toEqual({lastName: 'Shmoe', address: '123 Main St.'});
       });
 
       it('prioritizes "hidden" if there are conflicts when using both "hidden" and "visible"', () => {
-        testModel.makeVisible('firstName', 'lastName');
-        testModel.makeHidden('lastName');
+        testModel.setVisible(['firstName', 'lastName']);
+        testModel.setHidden(['lastName']);
         expect(testModel.toData()).toEqual({ firstName: 'Joe' });
+      });
+
+      it('allows overriding the model\'s "hidden" property with a "setHidden" argument', () => {
+        testModel.hidden = ['lastName'];
+        testModel.setHidden(['firstName', 'id']);
+        const data = testModel.toData();
+        expect(data).toEqual({
+          lastName: 'Shmoe',
+          address: '123 Main St.'
+        });
       });
 
       it('allows overriding the model\'s "hidden" property with a "makeHidden" argument', () => {
         testModel.hidden = ['lastName'];
-        const data = testModel.makeHidden('firstName', 'id').toData();
-        expect(data).toEqual({address: '123 Main St.'});
+        testModel.makeHidden(['firstName', 'id']);
+        const data = testModel.toData();
+        expect(data).toEqual({
+          address: '123 Main St.'
+        });
       });
 
-      it('prioritizes "makeHidden" when overriding both the model\'s "hidden" and "visible" properties with "makeHidden" and "makeVisible" arguments', () => {
+      it('prioritizes "setHidden" when overriding both the model\'s "hidden" and "visible" properties with "setHidden" and "setVisible" arguments', () => {
         testModel.visible = ['lastName', 'address'];
         testModel.hidden = ['address'];
-        const data = testModel.makeVisible('firstName', 'lastName').makeHidden('lastName').toData();
+        const data = testModel.setVisible(['firstName', 'lastName']).setHidden(['lastName']).toData();
 
         expect(data).toEqual({firstName: 'Joe'});
+
+        const knex = require('knex')({ client: 'mysql' });
+        console.log(knex.client.JoinClause);
       });
 
       it('append virtual attribute', () => {
