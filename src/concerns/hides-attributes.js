@@ -8,7 +8,10 @@ const HidesAttributes = (Model) => {
 
     makeVisible(...keys) {
       const visible = flattenDeep(keys);
-      this.visible = [...this.visible, ...visible];
+
+      if (this.visible.length > 0) {
+        this.visible = [...this.visible, ...visible];
+      }
 
       this.hidden = difference(this.hidden, visible);
       return this;
@@ -16,9 +19,10 @@ const HidesAttributes = (Model) => {
 
     makeHidden(...keys) {
       const hidden = flattenDeep(keys);
-      this.hidden = [...this.hidden, ...hidden];
 
-      this.visible = difference(this.visible, hidden);
+      if (this.hidden.length > 0) {
+        this.hidden = [...this.hidden, ...hidden];
+      }
       return this;
     }
 
@@ -32,10 +36,12 @@ const HidesAttributes = (Model) => {
 
     setHidden(hidden) {
       this.hidden = hidden;
+      return this;
     }
 
     setVisible(visible) {
       this.visible = visible;
+      return this;
     }
   }
 }
