@@ -3,7 +3,7 @@ const { tap } = require('./utils');
 
 const hasJoins = (statements) => {
   for (const statement of statements) {
-    if (typeof statement === 'JoinClause' || statement?.grouping === 'join') {
+    if (statement?.grouping === 'join') {
       return true;
     }
   }
