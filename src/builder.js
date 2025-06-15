@@ -864,7 +864,7 @@ class Builder {
   }
 
   async updateOrCreate(attributes, values = {}) {
-    return await tap(this.firstOrNew(attributes), async (instance) => {
+    return await tap(await this.firstOrNew(attributes), async (instance) => {
       await instance.fill(values).save({
         client: this.query
       });
