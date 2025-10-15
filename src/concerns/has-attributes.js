@@ -138,9 +138,8 @@ const HasAttributes = (Model) => {
       const attrMethod = getAttrMethod(key);
       if (typeof this[attrMethod] === 'function') {
         const attribute = this[attrMethod]();
-        const callback = attribute.set || ((value) => {
-          this.attributes[key] = value;
-        });
+
+        const callback = attribute.set || (value => value);
 
         this.attributes = {
           ...this.attributes,
