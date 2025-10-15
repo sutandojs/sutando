@@ -61,11 +61,34 @@ const HasRelations = (Model) => {
     }
   
     guessBelongsToRelation() {
-      let e = new Error();
-      let frame = e.stack.split("\n")[2];
-      // let lineNumber = frame.split(":").reverse()[1];
-      let functionName = frame.split(" ")[5];
-      return getRelationName(functionName);
+      const e = new Error();
+      const stack = e.stack || e.stackTrace;
+      
+      if (!stack) {
+        return getRelationName('unknown');
+      }
+
+      const frames = stack.split('\n');
+      const frame = frames[2] || frames[1] || frames[0];
+      
+      let functionName = 'anonymous';
+      
+      if (frame.includes('@')) {
+        // Safari: functionName@file:line:column
+        functionName = frame.split('@')[0].trim();
+      } else if (frame.includes('at ')) {
+        // Chrome: at functionName (file:line:column)
+        const match = frame.match(/at\s+([^(]+)\s*\(/);
+        functionName = match ? match[1].trim() : 'anonymous';
+        
+        if (functionName.includes('.')) {
+          functionName = functionName.split('.').pop();
+        }
+      }
+      
+      functionName = functionName.replace(/^</, '').replace(/>$/, '').trim();
+      
+      return getRelationName(functionName || 'anonymous');
     }
 
     joiningTable(related, instance = null) {
