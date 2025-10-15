@@ -411,7 +411,7 @@ declare module 'sutando' {
     relationLoaded(relation: string): boolean;
     makeVisible(attributes: string | string[]): this;
     makeHidden(attributes: string | string[]): this;
-    newCollection(models?: any[]): Collection<this>;
+    newCollection<T extends Model>(this: T, models?: any[]): Collection<T>;
     load(relations: WithRelationType): Promise<this>;
     load(...relations: WithRelationType[]): Promise<this>;
     loadAggregate(relations: WithRelationType, column: any, callback?: any): Promise<this>;
@@ -762,14 +762,16 @@ declare module 'sutando' {
   export class RelationNotFoundError extends Error {}
   export class InvalidArgumentError extends Error {}
 
-  export function HasUniqueIds<T extends new (...args: any[]) => Model>(Base: T): T & {
-    new (...args: ConstructorParameters<T>): {
+  interface IHasUniqueIds {
+    new (...args: any[]): {
       useUniqueIds: boolean;
     };
-  };
+  }
+  
+  export function HasUniqueIds<T extends new (...args: any[]) => Model>(Base: T): T & IHasUniqueIds;
 
-  export interface ISoftDeletes<T extends new (...args: any[]) => Model> {
-    new (...args: ConstructorParameters<T>): {
+  export interface ISoftDeletes {
+    new (...args: any[]): {
       forceDeleting: boolean;
       initializeSoftDeletes(): void;
       forceDelete(): Promise<boolean>;
@@ -777,7 +779,7 @@ declare module 'sutando' {
       performDeleteOnModel(options?: {}): Promise<any>;
       exists: boolean;
       runSoftDelete(options?: {}): Promise<void>;
-      restore(options?: any): Promise<any>;
+      restore(options?: any): Promise<boolean>;
       restoreQuietly(): any;
       trashed(): boolean;
       isForceDeleting(): boolean;
@@ -792,7 +794,7 @@ declare module 'sutando' {
     forceDeleted(callback: Function): void;
   }
 
-  export function SoftDeletes<T extends new (...args: any[]) => Model>(Base: T): T & ISoftDeletes<T>;
+  export function SoftDeletes<T extends new (...args: any[]) => Model>(Base: T): T & ISoftDeletes;
 
   export class Migration {
     protected connection: AnyQueryBuilder;
@@ -803,7 +805,6 @@ declare module 'sutando' {
 
   export function getRelationMethod(name: string): string;
   export function getScopeMethod(name: string): string;
-  export const compose: MixinFunction;
 
   export function make<T extends Model>(modelClass: new (...args: any[]) => T, attributes: Record<string, any>): T;
   export function make<T extends Model>(modelClass: new (...args: any[]) => T, attributes: Record<string, any>[]): Collection<T>;
@@ -817,6 +818,7 @@ declare module 'sutando' {
   export interface MixinFunction {
     <MC extends AnyModelConstructor>(modelClass: MC, ...plugins: Plugin[]): MC;
   }
+  export const compose: MixinFunction;
 
   export function migrateRun(
     config: any,

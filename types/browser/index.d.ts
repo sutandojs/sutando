@@ -84,7 +84,7 @@ declare module 'sutando' {
     relationLoaded(relation: string): boolean;
     makeVisible(attributes: string | string[]): this;
     makeHidden(attributes: string | string[]): this;
-    newCollection(models?: any[]): Collection<this>;
+    newCollection<T extends Model>(this: T, models?: any[]): Collection<T>;
     usesTimestamps(): boolean;
     updateTimestamps(): this;
     getCreatedAtColumn(): string;

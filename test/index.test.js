@@ -244,9 +244,6 @@ describe('Model', () => {
         const data = testModel.setVisible(['firstName', 'lastName']).setHidden(['lastName']).toData();
 
         expect(data).toEqual({firstName: 'Joe'});
-
-        const knex = require('knex')({ client: 'mysql' });
-        console.log(knex.client.JoinClause);
       });
 
       it('append virtual attribute', () => {
@@ -393,6 +390,12 @@ describe('Integration test', () => {
       class UuidUser extends compose(Base, HasUniqueIds) {
         newUniqueId() {
           return crypto.randomUUID();
+        }
+
+        attributeName() {
+          return Attribute.make({
+            get: (value, attributes) => attributes.name || attributes.id,
+          })
         }
       }
 
