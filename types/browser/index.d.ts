@@ -75,7 +75,10 @@ declare module 'sutando' {
     fill(attributes: any): this;
     setAppends(appends: string[]): this;
     append(key: string | string[]): this;
-    getRelation<T extends Model>(relation: string): T | Collection<T> | null | undefined;
+    getRelation<
+      T extends Model,
+      IsCollection extends boolean = false
+    >(relation: string): IsCollection extends true ? Collection<T> | undefined : T | null | undefined;
     setRelation<T extends Model>(relation: string, value: T | Collection<T> | null): this;
     unsetRelation(relation: string): this;
     relationLoaded(relation: string): boolean;
@@ -161,9 +164,10 @@ declare module 'sutando' {
   export class RelationNotFoundError extends Error {}
   export class InvalidArgumentError extends Error {}
 
-  export function make<T extends new (...args: any[]) => Model>(modelClass: T, attributes: Record<string, any>[]): Collection<T>;
-  export function makeCollection<T extends new (...args: any[]) => Model>(modelClass: T, attributes: Record<string, any>[]): Collection<T>;
-  export function makePaginator<T extends new (...args: any[]) => Model>(modelClass: T, attributes: Record<string, any>[]): Paginator<T>;
+  export function make<T extends Model>(modelClass: new (...args: any[]) => T, attributes: Record<string, any>): T;
+  export function make<T extends Model>(modelClass: new (...args: any[]) => T, attributes: Record<string, any>[]): Collection<T>;
+  export function makeCollection<T extends Model>(modelClass: new (...args: any[]) => T, attributes: Record<string, any>[]): Collection<T>;
+  export function makePaginator<T extends Model>(modelClass: new (...args: any[]) => T, attributes: Record<string, any>[]): Paginator<T>;
 
   export function HasUniqueIds<T extends new (...args: any[]) => Model>(Base: T): T & {
     new (...args: ConstructorParameters<T>): {
