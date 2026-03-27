@@ -13,16 +13,17 @@ async function prepareDatabase(migrator) {
 }
 
 async function setupConnection(config) {
-  const sutando = require('./sutando');
+  const Sutando = require('./sutando');
   const MigrationRepository = require('./migrations/migration-repository');
   const Migrator = require('./migrations/migrator');
-  
+
   const table = config?.migration?.table || 'migrations';
-  
+  const sutando = new Sutando;
+
   sutando.addConnection(config, 'default');
 
   Object.entries(config.connections || {}).forEach(([name, connection]) => {
-      sutando.addConnection(connection, name);
+    sutando.addConnection(connection, name);
   });
 
   const repository = new MigrationRepository(sutando, table);
@@ -99,7 +100,7 @@ async function migrateStatus(config, options = {}, destroyAll = false) {
   if (destroyAll) {
     await sutando.destroyAll();
   }
-  
+
   return migrations;
 }
 
