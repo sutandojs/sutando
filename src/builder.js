@@ -45,11 +45,11 @@ class Builder {
           'select', 'from', 'where', 'orWhere', 'whereColumn', 'whereRaw',
           'whereNot', 'orWhereNot', 'whereIn', 'orWhereIn', 'whereNotIn', 'orWhereNotIn', 'whereNull', 'orWhereNull', 'whereNotNull', 'orWhereNotNull', 'whereExists', 'orWhereExists',
           'whereNotExists', 'orWhereNotExists', 'whereBetween', 'orWhereBetween', 'whereNotBetween', 'orWhereNotBetween',
-          'whereLike', 'orWhereLike', 'whereILike', 'orWhereILike', 
-          'whereJsonObject', 'whereJsonPath', 'whereJsonSupersetOf', 'whereJsonSubsetOf', 
-          'join', 'joinRaw', 'leftJoin', 'leftOuterJoin', 'rightJoin', 'rightOuterJoin', 'crossJoin', 
+          'whereLike', 'orWhereLike', 'whereILike', 'orWhereILike',
+          'whereJsonObject', 'whereJsonPath', 'whereJsonSupersetOf', 'whereJsonSubsetOf',
+          'join', 'joinRaw', 'leftJoin', 'leftOuterJoin', 'rightJoin', 'rightOuterJoin', 'crossJoin',
           'transacting', 'groupBy', 'groupByRaw', 'returning',
-          'having', 'havingRaw', 'havingBetween', 
+          'having', 'havingRaw', 'havingBetween',
           'limit', 'offset', 'orderBy', 'orderByRaw', // 'inRandomOrder',
           'union', 'insert', 'forUpdate', 'forShare', 'distinct',
           'clearOrder', 'clear', 'clearSelect', 'clearWhere', 'clearHaving', 'clearGroup',
@@ -102,12 +102,32 @@ class Builder {
     return new Proxy(this, handler)
   }
 
+  where(...args) {
+    if (typeof args[0] === 'function') {
+      const callback = args[0];
+      this.query.where((query) => {
+        const originalQuery = this.query;
+        this.query = query;
+        callback(this);
+        this.query = originalQuery;
+      });
+
+      return this;
+    }
+
+    this.query.where(...args);
+
+    return this;
+  }
+
   orWhere(...args) {
     if (typeof args[0] === 'function') {
       const callback = args[0];
       this.query.orWhere((query) => {
+        const originalQuery = this.query;
         this.query = query;
         callback(this);
+        this.query = originalQuery;
       });
 
       return this;
@@ -160,7 +180,7 @@ class Builder {
     builder.globalScopes = { ...this.globalScopes };
     builder.localMacros = { ...this.localMacros };
     builder.eagerLoad = { ...this.eagerLoad };
-    
+
     return builder;
   }
 
@@ -196,8 +216,8 @@ class Builder {
   }
 
   addUpdatedAtColumn(values) {
-    if (! this.model.usesTimestamps()
-    || this.model.getUpdatedAtColumn() === null) {
+    if (!this.model.usesTimestamps()
+      || this.model.getUpdatedAtColumn() === null) {
       return values;
     }
 
@@ -256,7 +276,7 @@ class Builder {
     } else {
       this.query = this.query?.table(this.model.getTable());
     }
-    
+
     return this;
   }
 
@@ -327,7 +347,7 @@ class Builder {
     if (typeof scope !== 'string') {
       scope = scope.constructor.name;
     }
-    
+
     unset(this.globalScopes, scope);
 
     return this;
@@ -362,7 +382,7 @@ class Builder {
     if (relations.length === 0) {
       return this;
     }
-    
+
     for (const relation of relations) {
       let eagerLoad;
       if (typeof relation === 'string') {
@@ -377,7 +397,7 @@ class Builder {
     }
 
     this.eagerLoad = merge(this.eagerLoad, this.parseWithRelations(eagerLoads));
-    
+
     return this;
   }
 
@@ -495,13 +515,13 @@ class Builder {
     const db = this.model.getConnection();
 
     return this.where(
-      db.raw('(' + query.toSQL().sql +')'),
+      db.raw('(' + query.toSQL().sql + ')'),
       operator,
-      typeof count ==='number' ? db.raw(count) : count,
+      typeof count === 'number' ? db.raw(count) : count,
       boolean
     );
   }
-  
+
   withAggregate(relations, column, action = null) {
     if (relations.length === 0) {
       return this;
@@ -594,9 +614,9 @@ class Builder {
 
     const wheres = from.getQuery()._single.table !== this.getQuery()._single.table
       ? this.requalifyWhereTables(
-          from.getQuery().wheres,
-          from.getQuery().from,
-          this.getModel().getTable()
+        from.getQuery().wheres,
+        from.getQuery().from,
+        this.getModel().getTable()
       ) : from.getQuery().wheres;
 
     return this.where(
@@ -631,7 +651,7 @@ class Builder {
     if (query.query._single.table !== this.query._single.table) {
       const databaseName = query.query._single.table;
 
-      if (! query.query._single.table.startsWith(databaseName) && ! query.query._single.table.contains('.')) {
+      if (!query.query._single.table.startsWith(databaseName) && !query.query._single.table.contains('.')) {
         query.from(databaseName + '.' + query.from);
       }
     }
@@ -694,7 +714,7 @@ class Builder {
       const last = progress.join('.');
 
       if (results[last] === undefined) {
-        results[last] = () => {};
+        results[last] = () => { };
       }
     });
 
@@ -705,7 +725,7 @@ class Builder {
     let preparedRelationships = {};
 
     if (prefix !== '') {
-        prefix += '.';
+      prefix += '.';
     }
 
     for (const key in relations) {
@@ -713,7 +733,7 @@ class Builder {
       if (isString(value) || isFinite(parseInt(value))) {
         continue;
       }
-      
+
       const [attribute, attributeSelectConstraint] = this.parseNameAndAttributeSelectionConstraint(key, value);
 
       preparedRelationships = merge(
@@ -723,7 +743,7 @@ class Builder {
         },
         this.prepareNestedWithRelationships(value, `${prefix}${attribute}`),
       );
-      
+
       unset(relations, key);
     }
 
@@ -734,10 +754,10 @@ class Builder {
       if (isString(value)) {
         [attribute, attributeSelectConstraint] = this.parseNameAndAttributeSelectionConstraint(value);
       }
-      
+
       preparedRelationships[`${prefix}${attribute}`] = this.combineConstraints([
         attributeSelectConstraint,
-        preparedRelationships[`${prefix}${attribute}`] || (() => {}),
+        preparedRelationships[`${prefix}${attribute}`] || (() => { }),
       ]);
     }
 
@@ -766,7 +786,7 @@ class Builder {
         if (column.includes('.')) {
           return column;
         }
-        
+
         return query instanceof BelongsToMany
           ? query.related.getTable() + '.' + column
           : column;
@@ -800,13 +820,13 @@ class Builder {
     if (models.length > 0) {
       models = await this.eagerLoadRelations(models);
     }
-    
+
     return models[0] || null;
   }
 
   async firstOrFail(...columns) {
     const data = await this.first(...columns);
-    
+
     if (data === null) {
       throw (new ModelNotFoundError).setModel(this.model.constructor.name);
     }
@@ -996,7 +1016,7 @@ class Builder {
         this.query.select(...columns);
       }
     }
-    
+
     return this.hydrate(
       await this.query.get()
     ).all();
@@ -1018,7 +1038,7 @@ class Builder {
 
     return relation.asProxy();
   }
-  
+
   relationsNestedUnder(relation) {
     const nested = {};
 
@@ -1054,7 +1074,7 @@ class Builder {
     for (const name in this.eagerLoad) {
       const constraints = this.eagerLoad[name];
 
-      if (! name.includes('.')) {
+      if (!name.includes('.')) {
         models = await this.eagerLoadRelation(models, name, constraints);
       }
     }
