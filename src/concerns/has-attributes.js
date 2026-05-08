@@ -18,12 +18,12 @@ const HasAttributes = (Model) => {
     casts = {};
     changes = {};
     appends = [];
-  
+
     setAppends(appends) {
       this.appends = appends;
       return this;
     }
-  
+
     append(...keys) {
       const appends = flattenDeep(keys);
       this.appends = [...this.appends, ...appends];
@@ -80,10 +80,10 @@ const HasAttributes = (Model) => {
 
       return false;
     }
-  
+
     getDirty() {
       const dirty = {};
-      
+
       const attributes = this.getAttributes();
       for (const key in attributes) {
         const value = attributes[key];
@@ -91,7 +91,7 @@ const HasAttributes = (Model) => {
           dirty[key] = value;
         }
       }
-  
+
       return dirty;
     }
 
@@ -109,7 +109,7 @@ const HasAttributes = (Model) => {
         return false;
       }
     }
-  
+
     setAttributes(attributes) {
       this.attributes = { ...attributes };
     }
@@ -123,11 +123,11 @@ const HasAttributes = (Model) => {
 
       return this;
     }
-  
+
     getAttributes() {
       return { ...this.attributes };
     }
-  
+
     setAttribute(key, value) {
       const setterMethod = getSetterMethod(key);
       if (typeof this[setterMethod] === 'function') {
@@ -150,14 +150,14 @@ const HasAttributes = (Model) => {
 
         return this;
       }
-  
+
       const casts = this.getCasts();
       const castType = casts[key];
-  
+
       if (this.isCustomCast(castType)) {
         value = castType.set(this, key, value, this.attributes);
       }
-  
+
       if (castType === 'json') {
         value = JSON.stringify(value);
       }
@@ -169,12 +169,12 @@ const HasAttributes = (Model) => {
       if (value !== null && this.isDateAttribute(key)) {
         value = this.fromDateTime(value);
       }
-  
+
       this.attributes[key] = value;
-  
+
       return this;
     }
-  
+
     getAttribute(key) {
       if (!key) {
         return;
@@ -190,37 +190,37 @@ const HasAttributes = (Model) => {
         const caster = this[attrMethod]();
         return caster.get(this.attributes[key], this.attributes);
       }
-  
+
       if (key in this.attributes) {
         if (this.hasCast(key)) {
           return this.castAttribute(key, this.attributes[key]);
         }
-        
+
         if (this.getDates().includes(key)) {
           return this.asDateTime(this.attributes[key]);
         }
 
         return this.attributes[key];
       }
-  
+
       if (key in this.relations) {
         return this.relations[key];
       }
-  
+
       return;
     }
-  
+
     castAttribute(key, value) {
       const castType = this.getCastType(key);
-  
+
       if (!castType) {
         return value;
       }
-  
+
       if (value === null) {
         return value;
       }
-  
+
       switch (castType) {
         case 'int':
         case 'integer':
@@ -257,24 +257,35 @@ const HasAttributes = (Model) => {
         case 'timestamp':
           return this.asTimestamp(value);
       }
-      
+
       if (this.isCustomCast(castType)) {
         return castType.get(this, key, value, this.attributes);
       }
-  
+
       return value;
     }
-  
+
     attributesToData() {
       const attributes = { ...this.attributes };
-  
+      const appends = new Set(this.appends);
+      const mutated = new Set();
+
       for (const key in attributes) {
         if (this.hidden.includes(key)) {
           unset(attributes, key);
         }
-  
+
         if (this.visible.length > 0 && this.visible.includes(key) === false) {
           unset(attributes, key);
+        }
+
+        if (typeof this[getAttrMethod(key)] === 'function' || typeof this[getGetterMethod(key)] === 'function') {
+          const value = this.mutateAttribute(key, attributes[key]);
+          if (value !== undefined && value !== null) {
+            attributes[key] = value;
+            appends.delete(key);
+            mutated.add(key);
+          }
         }
       }
 
@@ -290,6 +301,10 @@ const HasAttributes = (Model) => {
 
       const casts = this.getCasts();
       for (const key in casts) {
+        if (mutated.has(key)) {
+          continue;
+        }
+
         const value = casts[key];
 
         if ((key in attributes) === false) {
@@ -308,29 +323,29 @@ const HasAttributes = (Model) => {
           attributes[key] = dayjs(attributes[key]).format(value.split(':')[1]);
         }
       }
-  
-      for (const key of this.appends) {
+
+      for (const key of Array.from(appends)) {
         attributes[key] = this.mutateAttribute(key, null);
       }
-  
+
       return attributes;
     }
-  
+
     mutateAttribute(key, value) {
       if (typeof this[getGetterMethod(key)] === 'function') {
         return this[getGetterMethod(key)](value);
       } else if (typeof this[getAttrMethod(key)] === 'function') {
         const caster = this[getAttrMethod(key)]();
-        return caster.get(key, this.attributes);
+        return caster.get(value, this.attributes);
       } else if (key in this) {
         return this[key];
       }
 
       return value;
     }
-  
+
     mutateAttributeForArray(key, value) {
-  
+
     }
 
     isDateAttribute(key) {
@@ -347,11 +362,11 @@ const HasAttributes = (Model) => {
         this.getUpdatedAtColumn(),
       ] : [];
     }
-  
+
     getCasts() {
       if (this.getIncrementing()) {
         return {
-          [this.getKeyName()]: this.getKeyType(), 
+          [this.getKeyName()]: this.getKeyType(),
           ...this.casts
         };
       }
@@ -387,7 +402,7 @@ const HasAttributes = (Model) => {
 
       return this.constructor.castTypeCache[castTypeCacheKey] = convertedCastType;
     }
-  
+
     hasCast(key, types = []) {
       if (key in this.casts) {
         types = flatten(types);
@@ -417,7 +432,7 @@ const HasAttributes = (Model) => {
       if (typeof cast !== 'string') {
         return false;
       }
-      
+
       return cast.startsWith('decimal:');
     }
 
@@ -434,27 +449,27 @@ const HasAttributes = (Model) => {
     getDateFormat() {
       return this.dateFormat || 'YYYY-MM-DD HH:mm:ss';
     }
-  
+
     asDecimal(value, decimals) {
       return parseFloat(value).toFixed(decimals);
     }
-  
+
     asDateTime(value) {
       if (value === null) {
         return null;
       }
-  
+
       if (value instanceof Date) {
         return value;
       }
-  
+
       if (typeof value === 'number') {
         return new Date(value * 1000);
       }
-  
+
       return new Date(value);
     }
-  
+
     asDate(value) {
       const date = this.asDateTime(value);
       return dayjs(date).startOf('day').toDate();

@@ -4,7 +4,8 @@ module.exports = {
       // Node environment test configuration
       displayName: 'node',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/test/**/index.test.js'],
+      testMatch: ['<rootDir>/test/**/*.test.js'],
+      testPathIgnorePatterns: ['/node_modules/', 'browser.test.js']
     },
     {
       // Browser environment test configuration
