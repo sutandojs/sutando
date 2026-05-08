@@ -273,14 +273,46 @@ describe('Model', () => {
       });
     });
 
-    it('model getter settings', () => {
-      expect(testModel.full_name).toBe('Joe Shmoe');
+    it('accessor and mutator same as field name should work without appends', () => {
+      class User extends Model {
+        attributeFirstName() {
+          return Attribute.make({
+            get: (value) => value.toUpperCase(),
+            set: (value) => value.toLowerCase()
+          });
+        }
+      }
+      
+      const user = new User({
+        firstName: 'Joe'
+      });
+      
+      expect(user.attributes.firstName).toBe('joe');
+      expect(user.firstName).toBe('JOE');
+      
+      const data = user.toData();
+      expect(data.firstName).toBe('JOE');
     });
 
-    it('model setter settings', () => {
-      testModel.full_name = 'Bill Gates';
-      expect(testModel.firstName).toBe('Bill');
-      expect(testModel.lastName).toBe('Gates');
+    it('getter and setter same as field name should work without appends', () => {
+      class User extends Model {
+        getFirstNameAttribute(value) {
+          return value.toUpperCase();
+        }
+        setFirstNameAttribute(value) {
+          this.attributes.firstName = value.toLowerCase();
+        }
+      }
+
+      const user = new User({
+        firstName: 'Joe'
+      });
+
+      expect(user.attributes.firstName).toBe('joe');
+      expect(user.firstName).toBe('JOE');
+
+      const data = user.toData();
+      expect(data.firstName).toBe('JOE');
     });
   })
 
