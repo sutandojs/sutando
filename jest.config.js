@@ -12,6 +12,9 @@ module.exports = {
       displayName: 'browser',
       testEnvironment: 'jsdom',
       testMatch: ['<rootDir>/test/**/browser.test.js'],
+      testEnvironmentOptions: {
+        customExportConditions: ['browser', 'require']
+      }
     }
   ]
 };

@@ -11,6 +11,16 @@
   "types": "./types/index.d.ts",
   "exports": {
     ".": {
+      "browser": {
+        "import": {
+          "types": "./types/browser/index.d.ts",
+          "default": "./src/browser/sutando.mjs"
+        },
+        "require": {
+          "types": "./types/browser/index.d.ts",
+          "default": "./src/browser/sutando.js"
+        }
+      },
       "worker": {
         "import": {
           "types": "./types/index.d.ts",
@@ -29,16 +39,6 @@
         "require": {
           "types": "./types/index.d.ts",
           "default": "./sutando.js"
-        }
-      },
-      "browser": {
-        "import": {
-          "types": "./types/browser/index.d.ts",
-          "default": "./src/browser/sutando.mjs"
-        },
-        "require": {
-          "types": "./types/browser/index.d.ts",
-          "default": "./src/browser/sutando.js"
         }
       },
       "default": {
